@@ -41,6 +41,7 @@ jobs:
       - name: Test
         run: dotnet test GoodPlays.sln --no-build --configuration Release --verbosity normal
         env:
+          Redis__ConnectionString: ""
           ConnectionStrings__Default: Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays
 
       - name: EF migrations compile check
