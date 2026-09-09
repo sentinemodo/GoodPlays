@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dotnet:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: goodplays
+          POSTGRES_USER: goodplays
+          POSTGRES_PASSWORD: goodplays
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U goodplays -d goodplays"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore GoodPlays.sln
+
+      - name: Build
+        run: dotnet build GoodPlays.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test GoodPlays.sln --no-build --configuration Release --verbosity normal
+        env:
+          ConnectionStrings__Default: Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays
+
+      - name: EF migrations compile check
+        run: |
+          dotnet tool restore
+          dotnet ef migrations list \
+            --project src/GoodPlays.Infrastructure/GoodPlays.Infrastructure.csproj \
+            --startup-project src/GoodPlays.Api/GoodPlays.Api.csproj
+        env:
+          ConnectionStrings__Default: Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: http://localhost:5280
+          VITE_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder

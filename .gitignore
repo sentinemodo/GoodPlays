@@ -1,0 +1,43 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+*.nupkg
+*.snupkg
+TestResults/
+*.DotSettings.user
+
+# Node
+node_modules/
+dist/
+*.local
+.npm
+.pnpm-debug.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+apps/web/.env
+apps/web/.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# ML artifacts
+*.zip
