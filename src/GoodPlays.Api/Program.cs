@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using GoodPlays.Api.Configuration;
 using GoodPlays.Api.Extensions;
 using GoodPlays.Api.Jobs;
@@ -27,7 +28,11 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .Enrich.FromLogContext()
     .WriteTo.Console());
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
