@@ -1,7 +1,10 @@
 using GoodPlays.Infrastructure.Configuration;
 using GoodPlays.Infrastructure.Metadata;
 using GoodPlays.Infrastructure.Persistence;
+using GoodPlays.Infrastructure.Security;
 using GoodPlays.Infrastructure.Services;
+using GoodPlays.Infrastructure.Steam;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +28,17 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ILibraryService, LibraryService>();
         services.AddScoped<IImportService, ImportService>();
+        services.AddScoped<IPlatformConnectionService, PlatformConnectionService>();
+
+        services.AddDataProtection();
+        services.AddSingleton<ITokenEncryptionService, DataProtectionTokenEncryptionService>();
+
+        services.Configure<SteamOptions>(configuration.GetSection(SteamOptions.SectionName));
+        services.AddHttpClient<ISteamClient, SteamClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.steampowered.com/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
 
         return services;
     }
