@@ -1,6 +1,7 @@
 import { ClerkProvider } from '@clerk/clerk-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router'
+import { appRoute } from './lib/routing'
 import { HomePage } from './pages/HomePage'
 import { LibraryPage } from './pages/LibraryPage'
 import { PrivacyPage } from './pages/PrivacyPage'
@@ -9,6 +10,7 @@ import { SignInPage } from './pages/SignInPage'
 const queryClient = new QueryClient()
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '')
+const clerkHomeUrl = appRoute('/')
 
 function AppRoutes() {
   return (
@@ -45,7 +47,12 @@ export default function App() {
   }
 
   return (
-    <ClerkProvider publishableKey={publishableKey}>
+    <ClerkProvider
+      publishableKey={publishableKey}
+      afterSignOutUrl={clerkHomeUrl}
+      signInFallbackRedirectUrl={clerkHomeUrl}
+      signUpFallbackRedirectUrl={clerkHomeUrl}
+    >
       <QueryClientProvider client={queryClient}>
         <AppRoutes />
       </QueryClientProvider>

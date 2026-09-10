@@ -2,6 +2,7 @@ import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-reac
 import { Link } from 'react-router'
 import { RecommendationsPanel } from '../components/RecommendationsPanel'
 import { useApiAuth } from '../hooks/useApiAuth'
+import { appRoute } from '../lib/routing'
 
 const hasClerk = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
 
@@ -25,7 +26,7 @@ export function HomePage() {
         {hasClerk ? (
           <>
             <SignedIn>
-              <UserButton />
+              <UserButton afterSignOutUrl={appRoute('/')} />
             </SignedIn>
             <SignedOut>
               <SignInButton mode="modal">
