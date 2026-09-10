@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { AddGameSearch } from '../components/AddGameSearch'
 import { ImportTextPanel } from '../components/ImportTextPanel'
+import { SteamConnectionPanel } from '../components/SteamConnectionPanel'
 import { useApiAuth } from '../hooks/useApiAuth'
 import { api } from '../lib/api'
 
@@ -20,7 +21,8 @@ function LibraryContent() {
     <>
       <AddGameSearch />
 
-      <div className="mt-6">
+      <div className="mt-6 space-y-6">
+        <SteamConnectionPanel />
         <ImportTextPanel />
       </div>
 

@@ -20,7 +20,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`)
+    let message = `API request failed: ${response.status}`
+    try {
+      const body = (await response.json()) as { message?: string }
+      if (body.message) {
+        message = body.message
+      }
+    } catch {
+      // ignore non-JSON error bodies
+    }
+    throw new Error(message)
+  }
+
+  if (response.status === 204) {
+    return undefined as T
   }
 
   return response.json() as Promise<T>
@@ -84,6 +97,30 @@ export type RecommendationSummary = {
   reason: string | null
 }
 
+export type PlatformConnectionSummary = {
+  platform: 'Steam' | 'Psn'
+  externalAccountId: string
+  displayName: string | null
+  lastSyncAt: string | null
+  syncEnabled: boolean
+  connectedAt: string
+}
+
+export type SteamSyncResult =
+  | {
+      queued: true
+      message: string
+    }
+  | {
+      queued?: false
+      addedCount: number
+      updatedCount: number
+      skippedCount: number
+      unmatchedCount: number
+      syncedAt: string
+      warning: string | null
+    }
+
 export const api = {
   getLibrary: () => request<LibraryEntrySummary[]>('/api/v1/library'),
   searchGames: (query: string) =>
@@ -105,4 +142,44 @@ export const api = {
       body: JSON.stringify({ modality: 'Text', text }),
     }),
   getImport: (jobId: string) => request<ImportJobSummary>(`/api/v1/imports/${jobId}`),
+  getPlatformConnections: () => request<PlatformConnectionSummary[]>('/api/v1/platforms'),
+  connectSteam: (steamIdOrUrl: string, apiKey: string) =>
+    request<PlatformConnectionSummary>('/api/v1/platforms/steam/connect', {
+      method: 'POST',
+      body: JSON.stringify({ steamIdOrUrl, apiKey }),
+    }),
+  disconnectSteam: () =>
+    request<void>('/api/v1/platforms/steam', {
+      method: 'DELETE',
+    }),
+  syncSteam: async (): Promise<SteamSyncResult> => {
+    const token = await getToken()
+    const response = await fetch(`${apiBaseUrl}/api/v1/platforms/steam/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+
+    if (!response.ok) {
+      let message = `API request failed: ${response.status}`
+      try {
+        const body = (await response.json()) as { message?: string }
+        if (body.message) {
+          message = body.message
+        }
+      } catch {
+        // ignore non-JSON error bodies
+      }
+      throw new Error(message)
+    }
+
+    const body = (await response.json()) as Record<string, unknown>
+    if ('message' in body && !('addedCount' in body)) {
+      return { queued: true, message: String(body.message) }
+    }
+
+    return body as SteamSyncResult
+  },
 }
