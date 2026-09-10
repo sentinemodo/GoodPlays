@@ -68,4 +68,22 @@ public class LibraryController(
 
         return Ok(entry);
     }
+
+    [HttpDelete("{entryId:guid}")]
+    public async Task<IActionResult> DeleteLibraryEntry(Guid entryId, CancellationToken cancellationToken)
+    {
+        var user = await currentUserAccessor.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var removed = await libraryService.DeleteAsync(user.Id, entryId, cancellationToken);
+        if (!removed)
+        {
+            return NotFound();
+        }
+
+        return NoContent();
+    }
 }

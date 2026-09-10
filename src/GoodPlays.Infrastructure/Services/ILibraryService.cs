@@ -38,4 +38,6 @@ public interface ILibraryService
         Guid entryId,
         UpdateLibraryEntryRequest request,
         CancellationToken cancellationToken);
+
+    Task<bool> DeleteAsync(Guid userId, Guid entryId, CancellationToken cancellationToken);
 }

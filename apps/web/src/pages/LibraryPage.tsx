@@ -1,5 +1,6 @@
 import { SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { AddGameSearch } from '../components/AddGameSearch'
 import { ImportTextPanel } from '../components/ImportTextPanel'
@@ -11,11 +12,31 @@ const hasClerk = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
 
 function LibraryContent() {
   useApiAuth()
+  const queryClient = useQueryClient()
+  const [removingEntryId, setRemovingEntryId] = useState<string | null>(null)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['library'],
     queryFn: api.getLibrary,
   })
+
+  const removeMutation = useMutation({
+    mutationFn: (entryId: string) => api.removeFromLibrary(entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['library'] })
+      queryClient.invalidateQueries({ queryKey: ['recommendations'] })
+    },
+    onSettled: () => setRemovingEntryId(null),
+  })
+
+  const handleRemove = (entryId: string, title: string) => {
+    if (!window.confirm(`Remove "${title}" from your library?`)) {
+      return
+    }
+
+    setRemovingEntryId(entryId)
+    removeMutation.mutate(entryId)
+  }
 
   return (
     <>
@@ -64,7 +85,7 @@ function LibraryContent() {
                         ?
                       </div>
                     )}
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-slate-100">{entry.gameTitle}</p>
                       <p className="text-xs text-slate-400">
                         {entry.status}
@@ -72,6 +93,15 @@ function LibraryContent() {
                         {entry.hoursPlayed != null ? ` · ${entry.hoursPlayed}h` : ''}
                       </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(entry.id, entry.gameTitle)}
+                      disabled={removingEntryId === entry.id}
+                      className="shrink-0 rounded border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:border-red-900 hover:text-red-300 disabled:opacity-50"
+                      aria-label={`Remove ${entry.gameTitle} from library`}
+                    >
+                      {removingEntryId === entry.id ? 'Removing…' : 'Remove'}
+                    </button>
                   </li>
                 ))}
               </ul>

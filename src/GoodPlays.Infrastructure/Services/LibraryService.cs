@@ -121,4 +121,19 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             entry.HoursPlayed,
             entry.UpdatedAt);
     }
+
+    public async Task<bool> DeleteAsync(Guid userId, Guid entryId, CancellationToken cancellationToken)
+    {
+        var entry = await dbContext.LibraryEntries
+            .FirstOrDefaultAsync(e => e.Id == entryId && e.UserId == userId, cancellationToken);
+
+        if (entry is null)
+        {
+            return false;
+        }
+
+        dbContext.LibraryEntries.Remove(entry);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }

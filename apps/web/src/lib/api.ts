@@ -135,6 +135,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ gameId, status }),
     }),
+  removeFromLibrary: (entryId: string) =>
+    request<void>(`/api/v1/library/${entryId}`, {
+      method: 'DELETE',
+    }),
   getRecommendations: () => request<RecommendationSummary[]>('/api/v1/recommendations'),
   createTextImport: (text: string) =>
     request<ImportJobSummary>('/api/v1/imports', {

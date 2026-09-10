@@ -27,6 +27,38 @@ public class LibraryServiceTests
     }
 
     [Fact]
+    public async Task DeleteAsync_RemovesEntryForUser()
+    {
+        var (context, userId, gameId) = await SeedUserAndGameAsync();
+        await using (context)
+        {
+            var service = new LibraryService(context);
+            var entry = await service.CreateAsync(
+                userId,
+                new CreateLibraryEntryRequest(gameId, LibraryStatus.Owned, null, null),
+                CancellationToken.None);
+
+            Assert.NotNull(entry);
+            var removed = await service.DeleteAsync(userId, entry!.Id, CancellationToken.None);
+
+            Assert.True(removed);
+            Assert.Empty(await context.LibraryEntries.ToListAsync());
+        }
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ReturnsFalseWhenEntryMissing()
+    {
+        var (context, userId, _) = await SeedUserAndGameAsync();
+        await using (context)
+        {
+            var service = new LibraryService(context);
+            var removed = await service.DeleteAsync(userId, Guid.NewGuid(), CancellationToken.None);
+            Assert.False(removed);
+        }
+    }
+
+    [Fact]
     public async Task CreateAsync_ReturnsNullWhenDuplicate()
     {
         var (context, userId, gameId) = await SeedUserAndGameAsync();
