@@ -1,0 +1,47 @@
+---
+description: React SPA conventions for GoodPlays web app
+globs: apps/web/**
+alwaysApply: false
+---
+
+# GoodPlays Frontend
+
+## Structure
+
+```
+apps/web/src/
+  pages/          # Route-level components
+  components/     # Reusable UI
+  lib/            # API client, hooks, utils
+  main.tsx        # Clerk + Router + QueryClient
+```
+
+## UI
+
+- Tailwind for layout and spacing
+- Accessible forms and buttons (keyboard, labels)
+- Loading/error states on all TanStack Query calls
+- Import job polling while `status === 'processing'`
+
+## Auth
+
+- Wrap app in `<ClerkProvider>`
+- Protected routes: redirect to `/sign-in`
+- Attach Clerk token to API requests
+
+## GitHub Pages
+
+Build with `VITE_BASE_PATH=/GoodPlays/` in CI. Router must use basename when set.
+
+## Key flows
+
+1. **Library** — search games, add, rate, hours (manual)
+2. **Import** — paste list → poll job → show auto-added vs review items
+3. **Recommendations** — list on home when signed in
+
+## Agents
+
+- Feature work → `/website-developer`
+- Tests → `/website-tester` or `/tdd` for hooks
+
+Keep diffs focused; match existing component style.

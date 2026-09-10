@@ -1,0 +1,67 @@
+---
+description: GoodPlays core conventions — monorepo, phases, agents, architecture links
+alwaysApply: true
+---
+
+# GoodPlays Core
+
+## Product
+
+Goodreads-for-games: library, ratings, import, research recommendations, social (phased). **Public by default.**
+
+## Monorepo
+
+```
+GoodPlays.sln
+src/GoodPlays.Api/            # ASP.NET Core 9, Hangfire, Clerk JWT
+src/GoodPlays.Domain/         # Entities, enums
+src/GoodPlays.Infrastructure/ # EF Core, migrations, external APIs
+src/GoodPlays.Ml/             # Research reco + ML.NET (Phase 3)
+apps/web/                     # React 19 + Vite SPA
+tests/GoodPlays.Tests/        # xUnit
+```
+
+## Stack (locked)
+
+- **Backend:** C# / .NET 9 — no Python
+- **DB:** PostgreSQL (Neon) + EF Core
+- **Jobs:** Hangfire + Redis (Upstash)
+- **Auth:** Clerk
+- **Metadata:** IGDB primary
+- **Deploy:** Railway (API), GitHub Pages (web)
+
+## Architecture docs
+
+Workspace: `Architectures/game-library-platform/`  
+Decisions: `product-decisions.md`
+
+## Subagents
+
+| Invoke | Use for |
+|--------|---------|
+| `/project-architect` | Boundaries, stack, ADRs |
+| `/cicd-release` | CI, Railway, Pages |
+| `/tdd` | Test-first backend + shared logic |
+| `/website-developer` | React UI |
+| `/website-tester` | Tests only (no prod edits) |
+| `/machine-learning-expert` | Reco / ML.NET |
+
+## TDD default
+
+New behavior → failing test first. See `csharp-tdd` and `typescript-tdd` rules.
+
+## Commands
+
+```bash
+docker compose up -d
+dotnet ef database update --project src/GoodPlays.Infrastructure --startup-project src/GoodPlays.Api
+dotnet run --project src/GoodPlays.Api
+cd apps/web && npm run dev
+dotnet test && cd apps/web && npm test
+```
+
+## Do not
+
+- Commit secrets (`.env` is gitignored)
+- Scrape Metacritic — use OpenCritic/IGDB
+- Call IGDB from the browser — use API gateway

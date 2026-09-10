@@ -1,0 +1,42 @@
+---
+description: CI/CD and deploy conventions for GoodPlays
+globs: "{.github/**,Dockerfile*,railway.toml,.dockerignore,docker-compose.yml}"
+alwaysApply: false
+---
+
+# GoodPlays CI/CD
+
+## Workflows
+
+| File | Purpose |
+|------|---------|
+| `.github/workflows/ci.yml` | dotnet test + web lint/build on PR/push |
+| Pages workflow | Deploy SPA to `sentinemodo.github.io/GoodPlays/` |
+
+## Deploy targets
+
+- **Railway:** API container from root `Dockerfile`; health `/health`
+- **Neon:** `DATABASE_URL`
+- **Upstash:** `REDIS_URL` (`rediss://`)
+- **Pages:** `VITE_API_URL` → Railway public URL
+
+## Docker
+
+- Multi-stage build: SDK → publish → aspnet runtime
+- `RunDbMigrations=true` in production settings when appropriate
+
+## Secrets
+
+Never commit. Update `.env.example` when adding keys.
+
+## Agent
+
+Use `/cicd-release` for pipeline changes, env documentation, release checklists.
+
+## Local parity
+
+```bash
+dotnet build && dotnet test
+cd apps/web && npm ci && npm run lint && npm run build
+docker compose up -d   # optional Postgres + Redis
+```

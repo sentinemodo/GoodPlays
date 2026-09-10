@@ -2,15 +2,23 @@ using GoodPlays.Api.Extensions;
 using GoodPlays.Api.Jobs;
 using GoodPlays.Api.Services;
 using GoodPlays.Infrastructure;
+using GoodPlays.Infrastructure.Configuration;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Ml;
 using Hangfire;
 using Hangfire.Redis.StackExchange;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
@@ -33,7 +41,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddMlServices(builder.Configuration);
 
-var redisConnection = builder.Configuration["Redis:ConnectionString"];
+var redisConnection = CloudConnectionResolver.ResolveRedisConnection(builder.Configuration);
 if (!string.IsNullOrWhiteSpace(redisConnection))
 {
     builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
@@ -56,11 +64,19 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
+
+    var productionOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? ["https://sentinemodo.github.io"];
+    options.AddPolicy("Production", policy =>
+        policy.WithOrigins(productionOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
 
-var connectionString = builder.Configuration.GetConnectionString("Default");
+var connectionString = CloudConnectionResolver.ResolvePostgresConnection(builder.Configuration);
 var healthChecks = builder.Services.AddHealthChecks()
-    .AddNpgSql(connectionString ?? "Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays", name: "postgres")
+    .AddNpgSql(connectionString, name: "postgres")
     .AddCheck("ml", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Research recommendation engine ready (Phase 1)"));
 
 if (!string.IsNullOrWhiteSpace(redisConnection))
@@ -89,10 +105,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSerilogRequestLogging();
-app.UseCors("ViteDev");
+app.UseCors(app.Environment.IsDevelopment() ? "ViteDev" : "Production");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+if (string.Equals(app.Configuration["RunDbMigrations"], "true", StringComparison.OrdinalIgnoreCase))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<GoodPlaysDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 app.MapControllers();
 app.MapHealthChecks("/health");

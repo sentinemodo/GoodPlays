@@ -1,0 +1,52 @@
+using GoodPlays.Infrastructure.Configuration;
+using Microsoft.Extensions.Configuration;
+
+namespace GoodPlays.Tests;
+
+public class CloudConnectionResolverTests
+{
+    [Fact]
+    public void ResolvePostgresConnection_UsesExplicitConnectionString()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Default"] = "Host=db.example;Database=goodplays"
+            })
+            .Build();
+
+        var connection = CloudConnectionResolver.ResolvePostgresConnection(configuration);
+
+        Assert.Equal("Host=db.example;Database=goodplays", connection);
+    }
+
+    [Fact]
+    public void ResolvePostgresConnection_FallsBackToDatabaseUrl()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DATABASE_URL"] = "postgresql://user:pass@neon.example/goodplays?sslmode=require"
+            })
+            .Build();
+
+        var connection = CloudConnectionResolver.ResolvePostgresConnection(configuration);
+
+        Assert.Equal("postgresql://user:pass@neon.example/goodplays?sslmode=require", connection);
+    }
+
+    [Fact]
+    public void ResolveRedisConnection_NormalizesRedissUrl()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["REDIS_URL"] = "rediss://default:secret-token@upstash.example:6379"
+            })
+            .Build();
+
+        var connection = CloudConnectionResolver.ResolveRedisConnection(configuration);
+
+        Assert.Equal("upstash.example:6379,password=secret-token,ssl=true,abortConnect=false", connection);
+    }
+}

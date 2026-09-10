@@ -156,8 +156,74 @@ Import and discovery:
 
 Set `LLM__ApiKey` in root `.env` for AI-powered suggestions (OpenAI-compatible; defaults to `gpt-4o-mini`).
 
-## Next steps for implementers (Phase 2+)
+## Phase 2 scope (Railway + Neon + Upstash)
+
+Deploy the API to Railway with managed Postgres (Neon) and Redis (Upstash) so GitHub Pages can call a public backend.
+
+### What was added
+
+- `Dockerfile` + `railway.toml` — container build and health check for Railway
+- Cloud connection resolver — accepts `DATABASE_URL` (Neon) and `REDIS_URL` (Upstash `rediss://`) in addition to explicit connection strings
+- Production CORS — allows `https://sentinemodo.github.io` (GitHub Pages)
+- Auto-migrations on deploy when `RunDbMigrations=true` (set in `appsettings.Production.json`)
+
+### One-time Railway setup
+
+1. **Neon** — [neon.tech](https://neon.tech) → create project → copy connection string (pooled is fine)
+2. **Upstash** — [upstash.com](https://upstash.com) → create Redis database → copy `rediss://` URL (needed for Hangfire import jobs)
+3. **Railway** — [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** → select `GoodPlays`
+4. Railway detects `railway.toml` and builds from the root `Dockerfile`
+
+### Railway environment variables
+
+Set these on the Railway service (Settings → Variables):
+
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | Neon connection string (or use Railway Neon plugin) |
+| `REDIS_URL` | Upstash `rediss://...` URL |
+| `Clerk__Authority` | `https://apt-cat-8367.clerk.accounts.dev` |
+| `Clerk__WebhookSecret` | From Clerk Dashboard → Webhooks |
+| `IGDB__ClientId` | Twitch dev portal |
+| `IGDB__ClientSecret` | Twitch dev portal |
+| `LLM__ApiKey` | Optional — OpenAI key for recommendations |
+
+Railway sets `PORT` and `ASPNETCORE_ENVIRONMENT=Production` automatically in the container.
+
+### Wire GitHub Pages to the API
+
+1. Copy the Railway public URL (e.g. `https://goodplays-api-production.up.railway.app`)
+2. GitHub repo → **Settings → Secrets and variables → Actions → Variables**
+3. Set `VITE_API_URL` to the Railway URL (no trailing slash)
+4. Re-run the **Deploy GitHub Pages** workflow (or push to `main`)
+
+### Clerk webhook (production)
+
+Clerk Dashboard → **Configure → Webhooks → Add endpoint**:
+
+- URL: `https://YOUR-RAILWAY-URL/api/v1/webhooks/clerk`
+- Events: `user.created`, `user.updated`, `user.deleted`
+
+Copy the signing secret → `Clerk__WebhookSecret` on Railway.
+
+### Verify deployment
+
+```bash
+curl https://YOUR-RAILWAY-URL/health
+```
+
+Expect `"status":"Healthy"` when Postgres (and Redis, if configured) are reachable.
+
+### Local vs cloud
+
+| Concern | Local | Railway |
+|---------|-------|---------|
+| Postgres | Docker Compose | Neon `DATABASE_URL` |
+| Redis | Docker Compose | Upstash `REDIS_URL` |
+| Import jobs | Inline without Redis | Hangfire with Upstash |
+| Frontend | `localhost:5173` | GitHub Pages + `VITE_API_URL` |
+
+## Next steps for implementers (Phase 3+)
 
 1. Object storage (R2) for CSV/image import modalities
-2. Connect Neon/Upstash in Railway for preview deploys
-3. ML.NET hybrid recommendation training (Phase 3)
+2. ML.NET hybrid recommendation training (Phase 3)

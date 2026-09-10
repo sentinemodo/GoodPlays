@@ -1,3 +1,4 @@
+using GoodPlays.Infrastructure.Configuration;
 using GoodPlays.Infrastructure.Metadata;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Infrastructure.Services;
@@ -11,8 +12,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? "Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays";
+        var connectionString = CloudConnectionResolver.ResolvePostgresConnection(configuration);
 
         services.AddDbContext<GoodPlaysDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>

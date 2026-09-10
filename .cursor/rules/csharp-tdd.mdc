@@ -1,0 +1,63 @@
+---
+description: C# TDD standards for GoodPlays API, Domain, Infrastructure, Ml
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# C# + TDD (GoodPlays)
+
+## Red → Green → Refactor
+
+1. Failing xUnit test first
+2. Smallest production change to pass
+3. Refactor with tests green
+4. Bugfix → regression test
+
+## Test project
+
+`tests/GoodPlays.Tests/` — xUnit, `WebApplicationFactory` for API integration tests.
+
+```bash
+dotnet test GoodPlays.sln
+```
+
+## Layers
+
+| Layer | Scope | Example |
+|-------|-------|---------|
+| **Unit** | Domain logic, mappers, resolvers | `CloudConnectionResolverTests` |
+| **Integration** | API + EF Core | Controller tests with test DB |
+
+Mock external HTTP (IGDB, LLM) at `IHttpClientFactory` boundaries.
+
+## Conventions
+
+- **.NET 9**, nullable enabled
+- Entities in `GoodPlays.Domain`; EF config in `GoodPlays.Infrastructure`
+- API routes: `/api/v1/{resource}`
+- Hangfire jobs: idempotent; handle missing Redis gracefully
+
+## Patterns
+
+```csharp
+// ✅ Scoped by authenticated user
+var userId = currentUserService.UserId;
+var entries = await db.LibraryEntries.Where(e => e.UserId == userId).ToListAsync();
+
+// ✅ Auto-add import threshold
+if (confidence >= 0.85m) item.UserAction = ImportUserAction.AutoAccepted;
+```
+
+## Avoid
+
+- Business logic in `Program.cs` — use services
+- Direct IGDB calls from controllers — use metadata gateway
+- Skipping migration when adding entities
+
+## Agents
+
+- Architecture changes → `/project-architect`
+- ML reco → `/machine-learning-expert`
+- CI → `/cicd-release`
+
+Before edits: name **test file**, **assertion**, **layer**. After: run `dotnet test`.

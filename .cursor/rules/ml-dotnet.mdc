@@ -1,0 +1,40 @@
+---
+description: ML.NET and recommendation conventions for GoodPlays.Ml
+globs: src/GoodPlays.Ml/**
+alwaysApply: false
+---
+
+# GoodPlays ML (.NET)
+
+## Projects
+
+- `GoodPlays.Ml` — engines, training, inference interfaces
+- Consumed by `GoodPlays.Api` via DI
+
+## Current: Research engine
+
+- `IRecommendationEngine` / `ResearchRecommendationEngine`
+- 5 games per run; debounced per user
+- LLM structured JSON → IGDB upsert → `RecommendationSnapshot`
+- Config: `LLM__ApiKey`, model default `gpt-4o-mini`
+
+## Phase 3: ML.NET hybrid
+
+- `MatrixFactorizationTrainer` for CF
+- Content features: genres, platforms, `game_type`, DLC via `parent_game_id`
+- Nightly Hangfire train; artifact to R2
+- Redis cache for top-K per user
+
+## Evaluation
+
+Log Precision@10 on train runs. Track research cost in `research_runs`.
+
+## Constraints
+
+- No Python / external reco SaaS as primary ranker
+- No LLM in final ranking loop (LLM for research/enrichment only)
+- Deterministic unit tests with mocked LLM responses
+
+## Agent
+
+Use `/machine-learning-expert` for algorithm changes; `/tdd` for implementation.

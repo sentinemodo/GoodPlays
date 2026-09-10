@@ -1,0 +1,49 @@
+---
+description: TypeScript TDD for GoodPlays React SPA
+globs: apps/web/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# TypeScript + TDD (GoodPlays web)
+
+## Red → Green → Refactor
+
+Colocate tests: `feature.ts` + `feature.test.ts` in `apps/web/src/`.
+
+```bash
+cd apps/web && npm test
+```
+
+## Stack
+
+- React 19, Vite, TanStack Query, Clerk
+- API client in `apps/web/src/lib/api.ts` (or equivalent)
+- Env: `VITE_API_URL`, `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_BASE_PATH`
+
+## Rules
+
+- Extract testable logic from components into `lib/` hooks and utils
+- Mock `fetch` or API module in unit tests — no real API in unit layer
+- Strict TypeScript; no `any` without comment
+
+## Patterns
+
+```typescript
+// ✅ Typed API response
+type LibraryEntry = { id: string; gameId: string; status: string; rating?: number };
+
+// ✅ Query key factory
+const libraryKeys = { all: ['library'] as const, list: () => [...libraryKeys.all, 'list'] as const };
+```
+
+## Avoid
+
+- IGDB or LLM calls from browser
+- Storing secrets in frontend env beyond Clerk publishable key
+- Business rules buried in JSX event handlers
+
+## Agents
+
+- UI features → `/website-developer`
+- E2E → `/website-tester`
+- Backend endpoints → `/tdd`
