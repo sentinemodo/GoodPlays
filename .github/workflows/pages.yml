@@ -31,13 +31,20 @@ jobs:
         working-directory: apps/web
         run: npm ci
 
+      - name: Verify Clerk publishable key is configured
+        run: |
+          if [ -z "${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}" ]; then
+            echo "::error::Set repository secret VITE_CLERK_PUBLISHABLE_KEY (Settings → Secrets → Actions)"
+            exit 1
+          fi
+
       - name: Build for GitHub Pages
         working-directory: apps/web
         run: npm run build
         env:
           VITE_BASE_PATH: /GoodPlays/
           VITE_API_URL: ${{ vars.VITE_API_URL }}
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
 
       - name: SPA fallback for client-side routes
         run: cp apps/web/dist/index.html apps/web/dist/404.html

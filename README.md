@@ -30,7 +30,7 @@ Use this URL when registering a Twitch/IGDB application (company website, privac
 
 1. GitHub → **Settings** → **Pages** → Source: **GitHub Actions**
 2. Optional repository **Variables**: `VITE_API_URL` (public API base URL when deployed)
-3. Repository **Variable**: `VITE_CLERK_PUBLISHABLE_KEY` (enables sign-in on Pages)
+3. Repository **Secret** (Settings → Secrets → Actions): `VITE_CLERK_PUBLISHABLE_KEY` (enables sign-in on Pages)
 
 Local builds keep `VITE_BASE_PATH` unset (served from `/`). The Pages workflow sets `VITE_BASE_PATH=/GoodPlays/`.
 

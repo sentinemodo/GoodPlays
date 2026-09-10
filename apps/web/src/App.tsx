@@ -28,8 +28,16 @@ export default function App() {
     return (
       <QueryClientProvider client={queryClient}>
         <div className="p-6 text-amber-300">
-          Set <code className="text-emerald-300">VITE_CLERK_PUBLISHABLE_KEY</code> in{' '}
-          <code className="text-emerald-300">apps/web/.env</code> to enable Clerk auth.
+          Set <code className="text-emerald-300">VITE_CLERK_PUBLISHABLE_KEY</code>{' '}
+          {import.meta.env.PROD ? (
+            <>
+              as a GitHub Actions secret and redeploy Pages (see README).
+            </>
+          ) : (
+            <>
+              in <code className="text-emerald-300">apps/web/.env</code> to enable Clerk auth.
+            </>
+          )}
         </div>
         <AppRoutes />
       </QueryClientProvider>
