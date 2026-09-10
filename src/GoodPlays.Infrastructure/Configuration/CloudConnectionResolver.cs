@@ -113,8 +113,8 @@ public static class CloudConnectionResolver
 
         var uri = new Uri(connection);
         var password = uri.UserInfo.Contains(':')
-            ? uri.UserInfo[(uri.UserInfo.IndexOf(':') + 1)..]
-            : uri.UserInfo;
+            ? Uri.UnescapeDataString(uri.UserInfo[(uri.UserInfo.IndexOf(':') + 1)..])
+            : Uri.UnescapeDataString(uri.UserInfo);
 
         var useSsl = uri.Scheme.Equals("rediss", StringComparison.OrdinalIgnoreCase);
         var hostPort = uri.IsDefaultPort ? uri.Host : $"{uri.Host}:{uri.Port}";

@@ -1,3 +1,4 @@
+using GoodPlays.Api.Configuration;
 using GoodPlays.Api.Extensions;
 using GoodPlays.Api.Jobs;
 using GoodPlays.Api.Services;
@@ -41,15 +42,25 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddMlServices(builder.Configuration);
 
-var redisConnection = CloudConnectionResolver.ResolveRedisConnection(builder.Configuration);
-if (!string.IsNullOrWhiteSpace(redisConnection))
+IConnectionMultiplexer? redisMultiplexer = null;
+var redisOptions = RedisConnectionFactory.BuildConfigurationOptions(builder.Configuration);
+if (redisOptions is not null)
 {
-    builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
+    redisMultiplexer = RedisConnectionFactory.TryConnect(redisOptions);
+    if (redisMultiplexer is null)
+    {
+        Log.Warning("Redis unavailable; import jobs will run inline");
+    }
+}
+
+if (redisMultiplexer is not null)
+{
+    builder.Services.AddSingleton(redisMultiplexer);
     builder.Services.AddHangfire(config => config
         .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
         .UseSimpleAssemblyNameTypeSerializer()
         .UseRecommendedSerializerSettings()
-        .UseRedisStorage(redisConnection));
+        .UseRedisStorage(redisMultiplexer));
     builder.Services.AddHangfireServer();
 }
 
@@ -79,15 +90,15 @@ var healthChecks = builder.Services.AddHealthChecks()
     .AddNpgSql(connectionString, name: "postgres")
     .AddCheck("ml", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Research recommendation engine ready (Phase 1)"));
 
-if (!string.IsNullOrWhiteSpace(redisConnection))
+if (redisMultiplexer is not null)
 {
-    healthChecks.AddRedis(redisConnection, name: "redis");
+    healthChecks.AddRedis(redisMultiplexer, name: "redis");
 }
 
 builder.Services.AddTransient<StubRecurringJobs>();
 builder.Services.AddTransient<ImportParseTextJob>();
 
-if (!string.IsNullOrWhiteSpace(redisConnection))
+if (redisMultiplexer is not null)
 {
     builder.Services.AddSingleton<IImportJobScheduler, HangfireImportJobScheduler>();
 }
@@ -120,7 +131,7 @@ if (string.Equals(app.Configuration["RunDbMigrations"], "true", StringComparison
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(redisConnection))
+if (app.Environment.IsDevelopment() && redisMultiplexer is not null)
 {
     app.UseHangfireDashboard("/hangfire");
     StubRecurringJobs.Register();
