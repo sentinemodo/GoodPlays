@@ -105,6 +105,58 @@ public class SteamSyncServiceTests
     }
 
     [Fact]
+    public async Task SyncAsync_ReconcilesExistingLibraryEntryByTitle()
+    {
+        var encryption = new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider());
+        var (context, userId, _) = await SeedSteamConnectionAsync(encryption);
+        await using (context)
+        {
+            var igdbGame = new Game
+            {
+                Id = Guid.NewGuid(),
+                Title = "Helldivers 2",
+                SortTitle = "helldivers 2",
+                Slug = "helldivers-2",
+                CoverUrl = "https://images.igdb.com/co7d9j.jpg",
+                MetadataStatus = MetadataStatus.Complete,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            igdbGame.ExternalIds.Add(new GameExternalId
+            {
+                GameId = igdbGame.Id,
+                Source = ExternalIdSource.Igdb,
+                ExternalId = "290987"
+            });
+            context.Games.Add(igdbGame);
+            context.LibraryEntries.Add(new LibraryEntry
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                GameId = igdbGame.Id,
+                Source = LibraryEntrySource.Manual,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            });
+            await context.SaveChangesAsync();
+
+            var service = CreateService(context, encryption, new FakeSteamClient([
+                new SteamOwnedGame(553850, "HELLDIVERS™ 2", 1200, 0, null, 20m)
+            ]));
+
+            var result = await service.SyncAsync(userId, CancellationToken.None);
+
+            Assert.Equal(1, result.UpdatedCount);
+            var entry = await context.LibraryEntries.SingleAsync();
+            Assert.Equal(igdbGame.Id, entry.GameId);
+            Assert.Equal(20m, entry.HoursPlayed);
+            Assert.Contains(
+                context.GameExternalIds,
+                x => x.GameId == igdbGame.Id && x.Source == ExternalIdSource.Steam && x.ExternalId == "553850");
+        }
+    }
+
+    [Fact]
     public async Task SyncAsync_SkipsPlaytimeUpdateWhenLocked()
     {
         var encryption = new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider());
@@ -237,5 +289,8 @@ public class SteamSyncServiceTests
 
         public Task<GoodPlays.Infrastructure.Metadata.IgdbSearchResult?> GetGameAsync(long igdbId, CancellationToken cancellationToken) =>
             Task.FromResult<GoodPlays.Infrastructure.Metadata.IgdbSearchResult?>(null);
+
+        public Task<long?> FindIgdbIdBySteamAppIdAsync(uint steamAppId, CancellationToken cancellationToken) =>
+            Task.FromResult<long?>(null);
     }
 }

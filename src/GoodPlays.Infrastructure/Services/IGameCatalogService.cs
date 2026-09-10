@@ -20,4 +20,8 @@ public interface IGameCatalogService
     Task<Game?> FindBySteamAppIdAsync(uint appId, CancellationToken cancellationToken);
 
     Task<Game> ImportFromSteamAppAsync(uint appId, string title, CancellationToken cancellationToken);
+
+    Task<Game> ResolveForSteamSyncAsync(uint appId, string steamTitle, CancellationToken cancellationToken);
+
+    Task<Game?> EnrichFromIgdbAsync(Game game, uint steamAppId, CancellationToken cancellationToken);
 }

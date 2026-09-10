@@ -105,6 +105,12 @@ public class ResearchRecommendationEngineTests
 
         public Task<Game> ImportFromSteamAppAsync(uint appId, string title, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<Game> ResolveForSteamSyncAsync(uint appId, string steamTitle, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Game?> EnrichFromIgdbAsync(Game game, uint steamAppId, CancellationToken cancellationToken) =>
+            Task.FromResult<Game?>(game);
     }
 
     private sealed class FakeLlmClient(bool isConfigured) : ILlmClient

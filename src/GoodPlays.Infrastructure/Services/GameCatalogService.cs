@@ -2,6 +2,7 @@ using GoodPlays.Domain.Entities;
 using GoodPlays.Domain.Enums;
 using GoodPlays.Infrastructure.Metadata;
 using GoodPlays.Infrastructure.Persistence;
+using GoodPlays.Infrastructure.Steam;
 using Microsoft.EntityFrameworkCore;
 
 namespace GoodPlays.Infrastructure.Services;
@@ -91,7 +92,10 @@ public sealed class GameCatalogService(
             .ToList();
     }
 
-    public async Task<Game?> ImportFromIgdbAsync(long igdbId, CancellationToken cancellationToken)
+    public Task<Game?> ImportFromIgdbAsync(long igdbId, CancellationToken cancellationToken) =>
+        ImportFromIgdbAsync(igdbId, cancellationToken, null);
+
+    private async Task<Game?> ImportFromIgdbAsync(long igdbId, CancellationToken cancellationToken, uint? steamAppId)
     {
         var existingExternal = await dbContext.GameExternalIds
             .Include(x => x.Game)
@@ -101,6 +105,11 @@ public sealed class GameCatalogService(
 
         if (existingExternal?.Game is not null)
         {
+            if (steamAppId is not null)
+            {
+                await AttachSteamExternalIdAsync(existingExternal.Game.Id, steamAppId.Value, cancellationToken);
+            }
+
             return existingExternal.Game;
         }
 
@@ -146,6 +155,12 @@ public sealed class GameCatalogService(
 
         dbContext.Games.Add(game);
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (steamAppId is not null)
+        {
+            await AttachSteamExternalIdAsync(game.Id, steamAppId.Value, cancellationToken);
+        }
+
         return game;
     }
 
@@ -196,5 +211,172 @@ public sealed class GameCatalogService(
         dbContext.Games.Add(game);
         await dbContext.SaveChangesAsync(cancellationToken);
         return game;
+    }
+
+    public async Task<Game> ResolveForSteamSyncAsync(uint appId, string steamTitle, CancellationToken cancellationToken)
+    {
+        var existingSteam = await dbContext.GameExternalIds
+            .Include(x => x.Game)
+            .Where(x => x.Source == ExternalIdSource.Steam && x.ExternalId == appId.ToString())
+            .Select(x => x.Game)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingSteam?.MetadataStatus == MetadataStatus.Complete)
+        {
+            return existingSteam;
+        }
+
+        if (igdbClient.IsConfigured)
+        {
+            var igdbId = await igdbClient.FindIgdbIdBySteamAppIdAsync(appId, cancellationToken);
+            if (igdbId is not null)
+            {
+                var igdbGame = await ImportFromIgdbAsync(igdbId.Value, cancellationToken, appId);
+                if (igdbGame is not null)
+                {
+                    return igdbGame;
+                }
+            }
+        }
+
+        var titleResolved = await ResolveByTitleAsync(appId, steamTitle, cancellationToken);
+        if (titleResolved is not null)
+        {
+            return titleResolved;
+        }
+
+        if (existingSteam is not null)
+        {
+            return await EnrichFromIgdbAsync(existingSteam, appId, cancellationToken) ?? existingSteam;
+        }
+
+        var stub = await ImportFromSteamAppAsync(appId, steamTitle, cancellationToken);
+        return await EnrichFromIgdbAsync(stub, appId, cancellationToken) ?? stub;
+    }
+
+    public async Task<Game?> EnrichFromIgdbAsync(Game game, uint steamAppId, CancellationToken cancellationToken)
+    {
+        if (game.MetadataStatus == MetadataStatus.Complete)
+        {
+            await AttachSteamExternalIdAsync(game.Id, steamAppId, cancellationToken);
+            return game;
+        }
+
+        if (!igdbClient.IsConfigured)
+        {
+            return null;
+        }
+
+        long? igdbId = await igdbClient.FindIgdbIdBySteamAppIdAsync(steamAppId, cancellationToken);
+        if (igdbId is null)
+        {
+            var normalizedTitle = SteamTitleNormalizer.Normalize(game.Title);
+            var results = await SearchAsync(normalizedTitle, cancellationToken);
+            var match = results.FirstOrDefault(r =>
+                             string.Equals(r.Title, game.Title, StringComparison.OrdinalIgnoreCase))
+                         ?? results.FirstOrDefault();
+            igdbId = match?.IgdbId;
+        }
+
+        if (igdbId is null or <= 0)
+        {
+            return null;
+        }
+
+        var igdbGame = await igdbClient.GetGameAsync(igdbId.Value, cancellationToken);
+        if (igdbGame is null)
+        {
+            return null;
+        }
+
+        game.Title = igdbGame.Title;
+        game.SortTitle = igdbGame.Title.ToLowerInvariant();
+        game.Summary = igdbGame.Summary;
+        game.CoverUrl = igdbGame.CoverUrl;
+        game.ReleaseDate = igdbGame.ReleaseDate;
+        game.MetadataStatus = MetadataStatus.Complete;
+        game.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var hasIgdbId = await dbContext.GameExternalIds.AnyAsync(
+            x => x.GameId == game.Id && x.Source == ExternalIdSource.Igdb,
+            cancellationToken);
+        if (!hasIgdbId)
+        {
+            dbContext.GameExternalIds.Add(new GameExternalId
+            {
+                GameId = game.Id,
+                Source = ExternalIdSource.Igdb,
+                ExternalId = igdbId.Value.ToString()
+            });
+        }
+
+        await AttachSteamExternalIdAsync(game.Id, steamAppId, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return game;
+    }
+
+    private async Task<Game?> ResolveByTitleAsync(uint appId, string steamTitle, CancellationToken cancellationToken)
+    {
+        var normalizedTitle = SteamTitleNormalizer.Normalize(steamTitle);
+        var results = await SearchAsync(normalizedTitle, cancellationToken);
+        if (results.Count == 0)
+        {
+            return null;
+        }
+
+        var exactMatches = results
+            .Where(r =>
+                string.Equals(r.Title, steamTitle, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(SteamTitleNormalizer.Normalize(r.Title), normalizedTitle, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        GameSummaryDto? chosen = exactMatches.Count switch
+        {
+            1 => exactMatches[0],
+            > 1 => null,
+            _ => results.Count == 1 ? results[0] : null
+        };
+
+        if (chosen is null)
+        {
+            return null;
+        }
+
+        if (chosen.Id != Guid.Empty)
+        {
+            var local = await dbContext.Games.FirstOrDefaultAsync(g => g.Id == chosen.Id, cancellationToken);
+            if (local is not null)
+            {
+                await AttachSteamExternalIdAsync(local.Id, appId, cancellationToken);
+            }
+
+            return local;
+        }
+
+        if (chosen.IgdbId is > 0)
+        {
+            return await ImportFromIgdbAsync(chosen.IgdbId.Value, cancellationToken, appId);
+        }
+
+        return null;
+    }
+
+    private async Task AttachSteamExternalIdAsync(Guid gameId, uint appId, CancellationToken cancellationToken)
+    {
+        var externalId = appId.ToString();
+        var exists = await dbContext.GameExternalIds.AnyAsync(
+            x => x.GameId == gameId && x.Source == ExternalIdSource.Steam && x.ExternalId == externalId,
+            cancellationToken);
+
+        if (!exists)
+        {
+            dbContext.GameExternalIds.Add(new GameExternalId
+            {
+                GameId = gameId,
+                Source = ExternalIdSource.Steam,
+                ExternalId = externalId
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 }

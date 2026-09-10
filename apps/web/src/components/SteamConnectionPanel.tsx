@@ -156,7 +156,8 @@ export function SteamConnectionPanel() {
         >
           Steam Web API key
         </a>{' '}
-        and Game details set to Public in your Steam privacy settings.
+        and Game details set to Public in your Steam privacy settings. Re-sync anytime to refresh cover art and
+        metadata from IGDB.
       </p>
 
       {connectionsQuery.isLoading && <p className="mt-4 text-sm text-slate-400">Loading connection…</p>}

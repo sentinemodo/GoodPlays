@@ -58,6 +58,18 @@ public sealed class IgdbClient : IIgdbClient
         return games.Select(MapGame).FirstOrDefault(g => g is not null);
     }
 
+    public async Task<long?> FindIgdbIdBySteamAppIdAsync(uint steamAppId, CancellationToken cancellationToken)
+    {
+        if (!IsConfigured)
+        {
+            return null;
+        }
+
+        var body = $"fields game; where category = 1 & uid = \"{steamAppId}\"; limit 1;";
+        var mappings = await QueryExternalGamesAsync(body, cancellationToken);
+        return mappings.FirstOrDefault()?.Game;
+    }
+
     private async Task<IReadOnlyList<IgdbGamePayload>> QueryGamesAsync(string body, CancellationToken cancellationToken)
     {
         try
@@ -83,6 +95,37 @@ public sealed class IgdbClient : IIgdbClient
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.LogWarning(ex, "IGDB query failed");
+            return [];
+        }
+    }
+
+    private async Task<IReadOnlyList<IgdbExternalGamePayload>> QueryExternalGamesAsync(
+        string body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var token = await GetAccessTokenAsync(cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.igdb.com/v4/external_games")
+            {
+                Content = new StringContent(body, Encoding.UTF8, "text/plain")
+            };
+            request.Headers.Add("Client-ID", _options.ClientId);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("IGDB external_games query failed with status {StatusCode}", response.StatusCode);
+                return [];
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            return await JsonSerializer.DeserializeAsync<List<IgdbExternalGamePayload>>(stream, JsonOptions, cancellationToken) ?? [];
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            _logger.LogWarning(ex, "IGDB external_games query failed");
             return [];
         }
     }
@@ -175,5 +218,10 @@ public sealed class IgdbClient : IIgdbClient
     private sealed class IgdbCoverPayload
     {
         public string? Url { get; set; }
+    }
+
+    private sealed class IgdbExternalGamePayload
+    {
+        public long? Game { get; set; }
     }
 }

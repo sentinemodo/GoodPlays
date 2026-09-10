@@ -92,18 +92,13 @@ public sealed class SteamSyncService(
         SteamOwnedGame steamGame,
         CancellationToken cancellationToken)
     {
-        var game = await gameCatalogService.FindBySteamAppIdAsync(steamGame.AppId, cancellationToken);
-        if (game is null)
-        {
-            game = await ResolveByTitleAsync(steamGame, cancellationToken);
-        }
+        var game = await gameCatalogService.ResolveForSteamSyncAsync(steamGame.AppId, steamGame.Name, cancellationToken);
+        game = await ReconcileWithExistingLibraryGameAsync(userId, game, steamGame, cancellationToken);
 
-        if (game is null)
+        if (game.MetadataStatus == MetadataStatus.Pending)
         {
-            return SyncOutcome.Unmatched;
+            game = await gameCatalogService.EnrichFromIgdbAsync(game, steamGame.AppId, cancellationToken) ?? game;
         }
-
-        await EnsureSteamExternalIdAsync(game.Id, steamGame.AppId, cancellationToken);
 
         var appIdStr = steamGame.AppId.ToString();
         var entry = await dbContext.LibraryEntries
@@ -171,63 +166,81 @@ public sealed class SteamSyncService(
         return SyncOutcome.Skipped;
     }
 
-    private async Task<Game?> ResolveByTitleAsync(SteamOwnedGame steamGame, CancellationToken cancellationToken)
+    private async Task<Game> ReconcileWithExistingLibraryGameAsync(
+        Guid userId,
+        Game resolvedGame,
+        SteamOwnedGame steamGame,
+        CancellationToken cancellationToken)
     {
         var normalizedTitle = SteamTitleNormalizer.Normalize(steamGame.Name);
-        var results = await gameCatalogService.SearchAsync(normalizedTitle, cancellationToken);
-        if (results.Count == 0)
+        var userEntries = await dbContext.LibraryEntries
+            .Include(e => e.Game)
+            .ThenInclude(g => g.ExternalIds)
+            .Where(e => e.UserId == userId)
+            .ToListAsync(cancellationToken);
+
+        var titleMatch = userEntries.FirstOrDefault(e =>
+            SteamTitleNormalizer.Normalize(e.Game.Title) == normalizedTitle);
+
+        if (titleMatch is null || titleMatch.GameId == resolvedGame.Id)
         {
-            return await gameCatalogService.ImportFromSteamAppAsync(steamGame.AppId, steamGame.Name, cancellationToken);
+            return resolvedGame;
         }
 
-        var exactMatches = results
-            .Where(r =>
-                string.Equals(r.Title, steamGame.Name, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(SteamTitleNormalizer.Normalize(r.Title), normalizedTitle, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var existingGame = titleMatch.Game;
+        var preferred = HasIgdbMetadata(existingGame) && !HasIgdbMetadata(resolvedGame)
+            ? existingGame
+            : resolvedGame.MetadataStatus == MetadataStatus.Complete && !HasIgdbMetadata(existingGame)
+                ? resolvedGame
+                : HasIgdbMetadata(existingGame)
+                    ? existingGame
+                    : resolvedGame;
 
-        GameSummaryDto? chosen = exactMatches.Count switch
+        if (preferred.MetadataStatus == MetadataStatus.Pending)
         {
-            1 => exactMatches[0],
-            > 1 => null,
-            _ => results.Count == 1 ? results[0] : null
-        };
-
-        if (chosen is null)
-        {
-            return null;
+            preferred = await gameCatalogService.EnrichFromIgdbAsync(preferred, steamGame.AppId, cancellationToken)
+                ?? preferred;
         }
 
-        if (chosen.Id != Guid.Empty)
+        if (titleMatch.GameId != preferred.Id)
         {
-            return await dbContext.Games.FirstOrDefaultAsync(g => g.Id == chosen.Id, cancellationToken);
+            var targetExists = userEntries.Any(e => e.GameId == preferred.Id);
+            if (!targetExists)
+            {
+                titleMatch.GameId = preferred.Id;
+                titleMatch.UpdatedAt = DateTimeOffset.UtcNow;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                MergeLibraryEntryData(userEntries.First(e => e.GameId == preferred.Id), titleMatch, steamGame);
+                dbContext.LibraryEntries.Remove(titleMatch);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
         }
 
-        if (chosen.IgdbId is > 0)
-        {
-            return await gameCatalogService.ImportFromIgdbAsync(chosen.IgdbId.Value, cancellationToken);
-        }
-
-        return await gameCatalogService.ImportFromSteamAppAsync(steamGame.AppId, steamGame.Name, cancellationToken);
+        return preferred;
     }
 
-    private async Task EnsureSteamExternalIdAsync(Guid gameId, uint appId, CancellationToken cancellationToken)
-    {
-        var externalId = appId.ToString();
-        var exists = await dbContext.GameExternalIds.AnyAsync(
-            x => x.GameId == gameId && x.Source == ExternalIdSource.Steam && x.ExternalId == externalId,
-            cancellationToken);
+    private static bool HasIgdbMetadata(Game game) =>
+        game.MetadataStatus == MetadataStatus.Complete ||
+        game.ExternalIds.Any(x => x.Source == ExternalIdSource.Igdb);
 
-        if (!exists)
+    private static void MergeLibraryEntryData(
+        LibraryEntry target,
+        LibraryEntry duplicate,
+        SteamOwnedGame steamGame)
+    {
+        if (!target.HoursPlayedLocked && duplicate.HoursPlayed is not null)
         {
-            dbContext.GameExternalIds.Add(new GameExternalId
-            {
-                GameId = gameId,
-                Source = ExternalIdSource.Steam,
-                ExternalId = externalId
-            });
-            await dbContext.SaveChangesAsync(cancellationToken);
+            target.HoursPlayed = duplicate.HoursPlayed;
+            target.HoursPlayedSource = duplicate.HoursPlayedSource;
         }
+
+        target.StartedAt ??= duplicate.StartedAt;
+        target.Rating ??= duplicate.Rating;
+        target.PlatformExternalId = steamGame.AppId.ToString();
+        target.UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     private enum SyncOutcome
