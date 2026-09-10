@@ -2,6 +2,7 @@ import { SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { AddGameSearch } from '../components/AddGameSearch'
+import { ImportTextPanel } from '../components/ImportTextPanel'
 import { useApiAuth } from '../hooks/useApiAuth'
 import { api } from '../lib/api'
 
@@ -18,6 +19,10 @@ function LibraryContent() {
   return (
     <>
       <AddGameSearch />
+
+      <div className="mt-6">
+        <ImportTextPanel />
+      </div>
 
       <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
         <div className="mb-4 flex items-center justify-between">

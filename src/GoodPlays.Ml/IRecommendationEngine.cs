@@ -6,6 +6,11 @@ public interface IRecommendationEngine
     Task<HealthStatus> CheckHealthAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed record RecommendationResult(Guid GameId, double Score, string? Reason);
+public sealed record RecommendationResult(
+    Guid GameId,
+    string Title,
+    string? CoverUrl,
+    double Score,
+    string? Reason);
 
 public sealed record HealthStatus(bool IsHealthy, string Message);

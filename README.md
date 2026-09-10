@@ -16,7 +16,7 @@ Core library loop:
 - Docker Compose for local Postgres 16 + Redis
 - GitHub Actions CI for `dotnet` and `apps/web`
 
-Not implemented yet: import pipeline, research recommendations, platform sync.
+Not implemented yet: CSV/image imports, platform sync, ML.NET hybrid training.
 
 ## Public demo (GitHub Pages)
 
@@ -145,8 +145,19 @@ Get-Content .env | ForEach-Object {
 dotnet run --project src/GoodPlays.Api
 ```
 
-## Next steps for implementers (Phase 1)
+## Phase 1 scope (complete)
 
-1. Import pipeline (`POST /api/v1/imports`) with Hangfire `ImportParseText` job
-2. Research recommendations agent + `GET /api/v1/recommendations`
-3. Connect Neon/Upstash in Railway for preview deploys
+Import and discovery:
+
+- Text import pipeline (`POST /api/v1/imports`) with Hangfire `ImportParseText` job (inline fallback without Redis)
+- Import status polling (`GET /api/v1/imports`, `GET /api/v1/imports/{id}`)
+- Research recommendations via LLM + catalog fallback (`GET /api/v1/recommendations`)
+- Web UI: paste-to-import on `/library`, recommendations on home when signed in
+
+Set `LLM__ApiKey` in root `.env` for AI-powered suggestions (OpenAI-compatible; defaults to `gpt-4o-mini`).
+
+## Next steps for implementers (Phase 2+)
+
+1. Object storage (R2) for CSV/image import modalities
+2. Connect Neon/Upstash in Railway for preview deploys
+3. ML.NET hybrid recommendation training (Phase 3)

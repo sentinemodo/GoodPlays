@@ -52,7 +52,7 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             Status = request.Status ?? LibraryStatus.Owned,
             Rating = request.Rating,
             HoursPlayed = request.HoursPlayed,
-            Source = LibraryEntrySource.Manual,
+            Source = request.Source ?? LibraryEntrySource.Manual,
             Visibility = Visibility.Public,
             CreatedAt = now,
             UpdatedAt = now

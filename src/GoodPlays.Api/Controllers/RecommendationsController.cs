@@ -1,3 +1,4 @@
+using GoodPlays.Api.Services;
 using GoodPlays.Ml;
 using Microsoft.AspNetCore.Mvc;
 
@@ -5,14 +6,20 @@ namespace GoodPlays.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/recommendations")]
-public class RecommendationsController(IRecommendationEngine recommendationEngine) : ControllerBase
+public class RecommendationsController(
+    IRecommendationEngine recommendationEngine,
+    ICurrentUserAccessor currentUserAccessor) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetRecommendations(CancellationToken cancellationToken)
     {
-        // TODO(architecture): ml-recommendations.md — research agent reco (Phase 1)
-        var userId = Guid.Empty;
-        var results = await recommendationEngine.GetRecommendationsAsync(userId, cancellationToken);
+        var user = await currentUserAccessor.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var results = await recommendationEngine.GetRecommendationsAsync(user.Id, cancellationToken);
         return Ok(results);
     }
 }

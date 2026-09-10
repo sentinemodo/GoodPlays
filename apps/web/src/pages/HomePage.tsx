@@ -1,7 +1,18 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react'
 import { Link } from 'react-router'
+import { RecommendationsPanel } from '../components/RecommendationsPanel'
+import { useApiAuth } from '../hooks/useApiAuth'
 
 const hasClerk = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
+
+function SignedInRecommendations() {
+  useApiAuth()
+  return (
+    <div className="mt-6">
+      <RecommendationsPanel />
+    </div>
+  )
+}
 
 export function HomePage() {
   return (
@@ -59,6 +70,23 @@ export function HomePage() {
           </Link>
         </div>
       </section>
+
+      {hasClerk ? (
+        <>
+          <SignedIn>
+            <SignedInRecommendations />
+          </SignedIn>
+          <SignedOut>
+            <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-slate-400">
+              Sign in to see personalized game recommendations.
+            </section>
+          </SignedOut>
+        </>
+      ) : (
+        <div className="mt-6">
+          <RecommendationsPanel />
+        </div>
+      )}
     </main>
   )
 }

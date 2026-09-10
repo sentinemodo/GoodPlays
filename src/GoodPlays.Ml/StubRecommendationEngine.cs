@@ -8,7 +8,7 @@ public sealed class StubRecommendationEngine(ILogger<StubRecommendationEngine> l
     {
         // TODO(architecture): ml-recommendations.md — ML.NET hybrid inference (Phase 3)
         logger.LogDebug("Stub recommendation engine invoked for user {UserId}", userId);
-        return Task.FromResult<IReadOnlyList<RecommendationResult>>(Array.Empty<RecommendationResult>());
+        return Task.FromResult<IReadOnlyList<RecommendationResult>>([]);
     }
 
     public Task<HealthStatus> CheckHealthAsync(CancellationToken cancellationToken = default)

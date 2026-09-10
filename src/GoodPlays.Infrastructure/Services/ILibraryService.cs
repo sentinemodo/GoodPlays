@@ -16,7 +16,8 @@ public sealed record CreateLibraryEntryRequest(
     Guid GameId,
     LibraryStatus? Status,
     short? Rating,
-    decimal? HoursPlayed);
+    decimal? HoursPlayed,
+    LibraryEntrySource? Source = null);
 
 public sealed record UpdateLibraryEntryRequest(
     LibraryStatus? Status,

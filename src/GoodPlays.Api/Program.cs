@@ -31,7 +31,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddMlServices();
+builder.Services.AddMlServices(builder.Configuration);
 
 var redisConnection = builder.Configuration["Redis:ConnectionString"];
 if (!string.IsNullOrWhiteSpace(redisConnection))
@@ -61,7 +61,7 @@ builder.Services.AddCors(options =>
 var connectionString = builder.Configuration.GetConnectionString("Default");
 var healthChecks = builder.Services.AddHealthChecks()
     .AddNpgSql(connectionString ?? "Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays", name: "postgres")
-    .AddCheck("ml", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("ML.NET stub ready (Phase 0)"));
+    .AddCheck("ml", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Research recommendation engine ready (Phase 1)"));
 
 if (!string.IsNullOrWhiteSpace(redisConnection))
 {
@@ -69,6 +69,16 @@ if (!string.IsNullOrWhiteSpace(redisConnection))
 }
 
 builder.Services.AddTransient<StubRecurringJobs>();
+builder.Services.AddTransient<ImportParseTextJob>();
+
+if (!string.IsNullOrWhiteSpace(redisConnection))
+{
+    builder.Services.AddSingleton<IImportJobScheduler, HangfireImportJobScheduler>();
+}
+else
+{
+    builder.Services.AddSingleton<IImportJobScheduler, InlineImportJobScheduler>();
+}
 
 var app = builder.Build();
 

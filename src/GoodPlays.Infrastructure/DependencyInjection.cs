@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IGameCatalogService, GameCatalogService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ILibraryService, LibraryService>();
+        services.AddScoped<IImportService, ImportService>();
 
         return services;
     }

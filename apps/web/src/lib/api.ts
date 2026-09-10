@@ -53,6 +53,37 @@ export type ImportedGame = {
   coverUrl: string | null
 }
 
+export type ImportLineSummary = {
+  rawLine: string
+  outcome: string
+  matchedTitle: string | null
+  gameId: string | null
+  igdbId: number | null
+}
+
+export type ImportJobSummary = {
+  id: string
+  modality: string
+  status: string
+  stats: {
+    addedCount: number
+    skippedCount: number
+    unmatchedCount: number
+    ambiguousCount: number
+    lines: ImportLineSummary[]
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export type RecommendationSummary = {
+  gameId: string
+  title: string
+  coverUrl: string | null
+  score: number
+  reason: string | null
+}
+
 export const api = {
   getLibrary: () => request<LibraryEntrySummary[]>('/api/v1/library'),
   searchGames: (query: string) =>
@@ -67,5 +98,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ gameId, status }),
     }),
-  getRecommendations: () => request<unknown[]>('/api/v1/recommendations'),
+  getRecommendations: () => request<RecommendationSummary[]>('/api/v1/recommendations'),
+  createTextImport: (text: string) =>
+    request<ImportJobSummary>('/api/v1/imports', {
+      method: 'POST',
+      body: JSON.stringify({ modality: 'Text', text }),
+    }),
+  getImport: (jobId: string) => request<ImportJobSummary>(`/api/v1/imports/${jobId}`),
 }
