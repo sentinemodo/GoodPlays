@@ -4,17 +4,35 @@ Goodreads-for-games — personal game library, ratings, and discovery.
 
 Architecture docs live at [`Architectures/game-library-platform/`](../../Architectures/game-library-platform/overview.md) (relative to this repo in the workspace).
 
-## Phase 0 scope
+## Phase 0 scope (complete)
 
-Runnable skeleton only:
+Core library loop:
 
-- ASP.NET Core 9 API with stub controllers, Clerk JWT hook, Hangfire + Redis wiring, Serilog
+- ASP.NET Core 9 API with Clerk JWT + webhook user sync, Hangfire + Redis wiring, Serilog
+- IGDB metadata gateway with local catalog fallback (`GET /api/v1/games/search`, `POST /api/v1/games`)
+- Library CRUD scoped to authenticated user (`GET/POST/PUT /api/v1/library`)
 - EF Core 9 schema for core catalog + library tables (Phase 1 social/import stubs included)
-- React 19 + Vite SPA with Clerk shell, React Router, TanStack Query
+- React 19 + Vite SPA with Clerk shell, game search + manual add UI on `/library`
 - Docker Compose for local Postgres 16 + Redis
 - GitHub Actions CI for `dotnet` and `apps/web`
 
-Not implemented yet: IGDB search, manual add flow, import pipeline, research recommendations.
+Not implemented yet: import pipeline, research recommendations, platform sync.
+
+## Public demo (GitHub Pages)
+
+The web app deploys automatically on push to `main`:
+
+**https://sentinemodo.github.io/GoodPlays/**
+
+Use this URL when registering a Twitch/IGDB application (company website, privacy policy at `/privacy`).
+
+### One-time repo setup
+
+1. GitHub → **Settings** → **Pages** → Source: **GitHub Actions**
+2. Optional repository **Variables**: `VITE_API_URL` (public API base URL when deployed)
+3. Repository **Variable**: `VITE_CLERK_PUBLISHABLE_KEY` (enables sign-in on Pages)
+
+Local builds keep `VITE_BASE_PATH` unset (served from `/`). The Pages workflow sets `VITE_BASE_PATH=/GoodPlays/`.
 
 ## Prerequisites
 
@@ -88,9 +106,47 @@ apps/web/                     # React + Vite SPA
 tests/GoodPlays.Tests/        # xUnit tests
 ```
 
-## Next steps for implementers
+## Clerk configuration
 
-1. Wire Clerk JWT authority + user sync webhook → `users` table
-2. Implement IGDB metadata gateway + manual add/search (Phase 0 exit criteria)
-3. Flesh out library POST/PUT endpoints with auth context
-4. Connect Neon/Upstash in Railway for preview deploys
+Your instance: `https://apt-cat-8367.clerk.accounts.dev` (from publishable key `pk_test_...`).
+
+| Variable | File | Purpose |
+|----------|------|---------|
+| `VITE_CLERK_PUBLISHABLE_KEY` | `apps/web/.env` | Frontend sign-in |
+| `Clerk__Authority` | root `.env` (export before `dotnet run`) | API JWT validation |
+| `Clerk__WebhookSecret` | root `.env` | Webhook signature verification |
+
+### Allowed origins (Clerk Dashboard)
+
+There is no separate **Allowed origins** menu in current Clerk UI.
+
+- **Local dev** (`http://localhost:5173`) — works automatically on Development instances.
+- **GitHub Pages** — **Configure → Domains → Add domain** → `sentinemodo.github.io`
+
+### Webhook (local, via ngrok)
+
+1. Start API: `dotnet run --project src/GoodPlays.Api`
+2. In another terminal: `ngrok http 5280`
+3. Clerk Dashboard → **Configure → Webhooks → Add endpoint**  
+   URL: `https://YOUR-NGROK-ID.ngrok-free.app/api/v1/webhooks/clerk`  
+   Events: `user.created`, `user.updated`, `user.deleted`
+4. Copy signing secret → `Clerk__WebhookSecret` in root `.env`
+
+First-time ngrok: sign up at [ngrok.com](https://ngrok.com), then `ngrok config add-authtoken YOUR_TOKEN`.
+
+Without Clerk configured, Development mode uses a local dev user for library endpoints.
+
+### Load root `.env` for API (PowerShell)
+
+```powershell
+Get-Content .env | ForEach-Object {
+  if ($_ -match '^\s*([^#=]+)=(.*)$') { Set-Item -Path "Env:$($matches[1].Trim())" -Value $matches[2].Trim() }
+}
+dotnet run --project src/GoodPlays.Api
+```
+
+## Next steps for implementers (Phase 1)
+
+1. Import pipeline (`POST /api/v1/imports`) with Hangfire `ImportParseText` job
+2. Research recommendations agent + `GET /api/v1/recommendations`
+3. Connect Neon/Upstash in Railway for preview deploys

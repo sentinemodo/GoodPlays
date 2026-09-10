@@ -36,9 +36,9 @@ export function HomePage() {
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-8">
         <p className="text-lg text-slate-300">
-          Track your library, rate games, and discover what to play next. Phase 0 skeleton is live.
+          Track your library, rate games, and discover what to play next. Search IGDB and add games to your collection.
         </p>
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 flex flex-wrap gap-3">
           <Link
             to="/library"
             className="rounded-lg bg-emerald-500 px-4 py-2 font-medium text-slate-950"
@@ -50,6 +50,12 @@ export function HomePage() {
             className="rounded-lg border border-slate-700 px-4 py-2 text-slate-200"
           >
             Sign in page
+          </Link>
+          <Link
+            to="/privacy"
+            className="rounded-lg border border-slate-700 px-4 py-2 text-slate-200"
+          >
+            Privacy policy
           </Link>
         </div>
       </section>

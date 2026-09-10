@@ -1,7 +1,9 @@
 import { SignIn } from '@clerk/clerk-react'
 import { Link } from 'react-router'
+import { appRoute } from '../lib/routing'
 
 const hasClerk = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
+const signInPath = appRoute('/sign-in')
 
 export function SignInPage() {
   return (
@@ -10,7 +12,7 @@ export function SignInPage() {
         ← Back home
       </Link>
       {hasClerk ? (
-        <SignIn routing="path" path="/sign-in" signUpUrl="/sign-in" />
+        <SignIn routing="path" path={signInPath} signUpUrl={signInPath} />
       ) : (
         <p className="text-center text-slate-400">
           Configure <code className="text-emerald-300">VITE_CLERK_PUBLISHABLE_KEY</code> to enable

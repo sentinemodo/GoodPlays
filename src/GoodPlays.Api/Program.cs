@@ -1,5 +1,6 @@
 using GoodPlays.Api.Extensions;
 using GoodPlays.Api.Jobs;
+using GoodPlays.Api.Services;
 using GoodPlays.Infrastructure;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Ml;
@@ -25,7 +26,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "GoodPlays API",
         Version = "v1",
-        Description = "Goodreads-for-games REST API (Phase 0 skeleton)"
+        Description = "Goodreads-for-games REST API"
     });
 });
 
@@ -44,6 +45,8 @@ if (!string.IsNullOrWhiteSpace(redisConnection))
     builder.Services.AddHangfireServer();
 }
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 builder.Services.AddClerkAuthentication(builder.Configuration);
 
 builder.Services.AddCors(options =>
@@ -78,11 +81,8 @@ if (app.Environment.IsDevelopment())
 app.UseSerilogRequestLogging();
 app.UseCors("ViteDev");
 
-if (ClerkAuthenticationExtensions.IsClerkConfigured(app.Configuration))
-{
-    app.UseAuthentication();
-    app.UseAuthorization();
-}
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/health");

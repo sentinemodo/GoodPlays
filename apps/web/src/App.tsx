@@ -3,17 +3,20 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router'
 import { HomePage } from './pages/HomePage'
 import { LibraryPage } from './pages/LibraryPage'
+import { PrivacyPage } from './pages/PrivacyPage'
 import { SignInPage } from './pages/SignInPage'
 
 const queryClient = new QueryClient()
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '')
 
 function AppRoutes() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename || undefined}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/library" element={<LibraryPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/sign-in/*" element={<SignInPage />} />
       </Routes>
     </BrowserRouter>

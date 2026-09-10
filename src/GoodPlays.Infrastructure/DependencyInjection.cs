@@ -1,4 +1,6 @@
+using GoodPlays.Infrastructure.Metadata;
 using GoodPlays.Infrastructure.Persistence;
+using GoodPlays.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +17,13 @@ public static class DependencyInjection
         services.AddDbContext<GoodPlaysDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsAssembly(typeof(GoodPlaysDbContext).Assembly.FullName)));
+
+        services.Configure<IgdbOptions>(configuration.GetSection(IgdbOptions.SectionName));
+        services.AddHttpClient<IIgdbClient, IgdbClient>();
+
+        services.AddScoped<IGameCatalogService, GameCatalogService>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<ILibraryService, LibraryService>();
 
         return services;
     }
