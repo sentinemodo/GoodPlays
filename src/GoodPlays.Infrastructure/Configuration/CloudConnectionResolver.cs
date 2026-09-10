@@ -9,16 +9,18 @@ public static class CloudConnectionResolver
 
     public static string ResolvePostgresConnection(IConfiguration configuration)
     {
-        var explicitConnection = configuration.GetConnectionString("Default");
-        if (!string.IsNullOrWhiteSpace(explicitConnection))
-        {
-            return explicitConnection;
-        }
-
+        // Cloud env vars must win over localhost defaults baked into appsettings.json.
         var databaseUrl = configuration["DATABASE_URL"];
         if (!string.IsNullOrWhiteSpace(databaseUrl))
         {
             return databaseUrl;
+        }
+
+        var explicitConnection = configuration.GetConnectionString("Default");
+        if (!string.IsNullOrWhiteSpace(explicitConnection)
+            && !IsLocalDevPostgresDefault(explicitConnection))
+        {
+            return explicitConnection;
         }
 
         return DefaultPostgres;
@@ -26,20 +28,28 @@ public static class CloudConnectionResolver
 
     public static string? ResolveRedisConnection(IConfiguration configuration)
     {
-        var explicitConnection = configuration["Redis:ConnectionString"];
-        if (!string.IsNullOrWhiteSpace(explicitConnection))
-        {
-            return NormalizeRedisConnection(explicitConnection);
-        }
-
         var redisUrl = configuration["REDIS_URL"];
         if (!string.IsNullOrWhiteSpace(redisUrl))
         {
             return NormalizeRedisConnection(redisUrl);
         }
 
+        var explicitConnection = configuration["Redis:ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(explicitConnection)
+            && !IsLocalDevRedisDefault(explicitConnection))
+        {
+            return NormalizeRedisConnection(explicitConnection);
+        }
+
         return null;
     }
+
+    private static bool IsLocalDevPostgresDefault(string connection)
+        => connection.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+           || connection.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsLocalDevRedisDefault(string connection)
+        => connection.Equals("localhost:6379", StringComparison.OrdinalIgnoreCase);
 
     private static string NormalizeRedisConnection(string connection)
     {

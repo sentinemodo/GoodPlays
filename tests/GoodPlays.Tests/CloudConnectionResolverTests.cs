@@ -36,6 +36,38 @@ public class CloudConnectionResolverTests
     }
 
     [Fact]
+    public void ResolvePostgresConnection_PrefersDatabaseUrlOverLocalhostDefault()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Default"] = "Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays",
+                ["DATABASE_URL"] = "postgresql://user:pass@neon.example/goodplays?sslmode=require"
+            })
+            .Build();
+
+        var connection = CloudConnectionResolver.ResolvePostgresConnection(configuration);
+
+        Assert.Equal("postgresql://user:pass@neon.example/goodplays?sslmode=require", connection);
+    }
+
+    [Fact]
+    public void ResolveRedisConnection_PrefersRedisUrlOverLocalhostDefault()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Redis:ConnectionString"] = "localhost:6379",
+                ["REDIS_URL"] = "rediss://default:secret-token@upstash.example:6379"
+            })
+            .Build();
+
+        var connection = CloudConnectionResolver.ResolveRedisConnection(configuration);
+
+        Assert.Equal("upstash.example:6379,password=secret-token,ssl=true,abortConnect=false", connection);
+    }
+
+    [Fact]
     public void ResolveRedisConnection_NormalizesRedissUrl()
     {
         var configuration = new ConfigurationBuilder()
