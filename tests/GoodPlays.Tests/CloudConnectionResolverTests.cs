@@ -32,7 +32,7 @@ public class CloudConnectionResolverTests
 
         var connection = CloudConnectionResolver.ResolvePostgresConnection(configuration);
 
-        Assert.Equal("postgresql://user:pass@neon.example/goodplays?sslmode=require", connection);
+        Assert.Equal("Host=neon.example;Port=5432;Database=goodplays;Username=user;Password=pass;SSL Mode=Require", connection);
     }
 
     [Fact]
@@ -48,7 +48,22 @@ public class CloudConnectionResolverTests
 
         var connection = CloudConnectionResolver.ResolvePostgresConnection(configuration);
 
-        Assert.Equal("postgresql://user:pass@neon.example/goodplays?sslmode=require", connection);
+        Assert.Equal("Host=neon.example;Port=5432;Database=goodplays;Username=user;Password=pass;SSL Mode=Require", connection);
+    }
+
+    [Fact]
+    public void ResolvePostgresConnection_FixesTruncatedSslMode()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DATABASE_URL"] = "postgresql://user:pass@neon.example/neondb?sslmode"
+            })
+            .Build();
+
+        var connection = CloudConnectionResolver.ResolvePostgresConnection(configuration);
+
+        Assert.Equal("Host=neon.example;Port=5432;Database=neondb;Username=user;Password=pass;SSL Mode=Require", connection);
     }
 
     [Fact]

@@ -13,14 +13,14 @@ public static class CloudConnectionResolver
         var databaseUrl = configuration["DATABASE_URL"];
         if (!string.IsNullOrWhiteSpace(databaseUrl))
         {
-            return databaseUrl;
+            return NormalizePostgresConnection(databaseUrl);
         }
 
         var explicitConnection = configuration.GetConnectionString("Default");
         if (!string.IsNullOrWhiteSpace(explicitConnection)
             && !IsLocalDevPostgresDefault(explicitConnection))
         {
-            return explicitConnection;
+            return NormalizePostgresConnection(explicitConnection);
         }
 
         return DefaultPostgres;
@@ -50,6 +50,58 @@ public static class CloudConnectionResolver
 
     private static bool IsLocalDevRedisDefault(string connection)
         => connection.Equals("localhost:6379", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizePostgresConnection(string connection)
+    {
+        if (!connection.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+            && !connection.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        {
+            return connection;
+        }
+
+        if (connection.EndsWith("?sslmode", StringComparison.OrdinalIgnoreCase)
+            || connection.EndsWith("&sslmode", StringComparison.OrdinalIgnoreCase))
+        {
+            connection += "=require";
+        }
+
+        var uri = new Uri(connection);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var username = Uri.UnescapeDataString(userInfo[0]);
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+        var database = uri.AbsolutePath.TrimStart('/');
+        var port = uri.IsDefaultPort ? 5432 : uri.Port;
+        var sslMode = ParseSslMode(uri.Query);
+
+        return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode={sslMode}";
+    }
+
+    private static string ParseSslMode(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return "Require";
+        }
+
+        foreach (var part in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var segments = part.Split('=', 2);
+            if (segments.Length == 2
+                && segments[0].Equals("sslmode", StringComparison.OrdinalIgnoreCase))
+            {
+                return segments[1].ToLowerInvariant() switch
+                {
+                    "disable" => "Disable",
+                    "prefer" => "Prefer",
+                    "verify-ca" => "VerifyCA",
+                    "verify-full" => "VerifyFull",
+                    _ => "Require"
+                };
+            }
+        }
+
+        return "Require";
+    }
 
     private static string NormalizeRedisConnection(string connection)
     {
