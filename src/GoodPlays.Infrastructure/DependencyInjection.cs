@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<ILibraryService, LibraryService>();
         services.AddScoped<IImportService, ImportService>();
         services.AddScoped<IPlatformConnectionService, PlatformConnectionService>();
+        services.AddScoped<ISteamSyncService, SteamSyncService>();
 
         services.AddDataProtection();
         services.AddSingleton<ITokenEncryptionService, DataProtectionTokenEncryptionService>();

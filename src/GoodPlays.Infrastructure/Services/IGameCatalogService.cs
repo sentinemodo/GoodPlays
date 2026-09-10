@@ -16,4 +16,8 @@ public interface IGameCatalogService
     Task<IReadOnlyList<GameSummaryDto>> SearchAsync(string query, CancellationToken cancellationToken);
 
     Task<Game?> ImportFromIgdbAsync(long igdbId, CancellationToken cancellationToken);
+
+    Task<Game?> FindBySteamAppIdAsync(uint appId, CancellationToken cancellationToken);
+
+    Task<Game> ImportFromSteamAppAsync(uint appId, string title, CancellationToken cancellationToken);
 }

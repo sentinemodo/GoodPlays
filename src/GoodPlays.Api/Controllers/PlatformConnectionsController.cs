@@ -9,6 +9,7 @@ namespace GoodPlays.Api.Controllers;
 [Route("api/v1/platforms")]
 public class PlatformConnectionsController(
     IPlatformConnectionService platformConnectionService,
+    ISteamSyncJobScheduler steamSyncJobScheduler,
     ICurrentUserAccessor currentUserAccessor) : ControllerBase
 {
     [HttpGet]
@@ -68,6 +69,41 @@ public class PlatformConnectionsController(
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("steam/sync")]
+    public async Task<IActionResult> SyncSteam(CancellationToken cancellationToken)
+    {
+        var user = await currentUserAccessor.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var schedule = await steamSyncJobScheduler.ScheduleSyncAsync(user.Id, cancellationToken);
+            if (schedule.Queued)
+            {
+                return Accepted(new { message = "Steam sync queued." });
+            }
+
+            return Ok(schedule.Result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (SteamApiException ex)
+        {
+            return ex.ErrorCode switch
+            {
+                SteamApiErrorCode.InvalidApiKey => Unauthorized(new { message = ex.Message }),
+                SteamApiErrorCode.PrivateProfile => BadRequest(new { message = ex.Message }),
+                SteamApiErrorCode.RateLimited => StatusCode(StatusCodes.Status429TooManyRequests, new { message = ex.Message }),
+                _ => StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message })
+            };
         }
     }
 

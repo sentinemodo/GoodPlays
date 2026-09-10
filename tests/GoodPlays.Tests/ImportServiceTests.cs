@@ -113,5 +113,11 @@ public class ImportServiceTests
 
         public Task<Game?> ImportFromIgdbAsync(long igdbId, CancellationToken cancellationToken) =>
             Task.FromResult<Game?>(null);
+
+        public Task<Game?> FindBySteamAppIdAsync(uint appId, CancellationToken cancellationToken) =>
+            Task.FromResult<Game?>(null);
+
+        public Task<Game> ImportFromSteamAppAsync(uint appId, string title, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

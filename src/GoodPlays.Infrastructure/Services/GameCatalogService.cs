@@ -148,4 +148,53 @@ public sealed class GameCatalogService(
         await dbContext.SaveChangesAsync(cancellationToken);
         return game;
     }
+
+    public async Task<Game?> FindBySteamAppIdAsync(uint appId, CancellationToken cancellationToken)
+    {
+        var externalId = appId.ToString();
+        return await dbContext.GameExternalIds
+            .AsNoTracking()
+            .Where(x => x.Source == ExternalIdSource.Steam && x.ExternalId == externalId)
+            .Select(x => x.Game)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Game> ImportFromSteamAppAsync(uint appId, string title, CancellationToken cancellationToken)
+    {
+        var existing = await FindBySteamAppIdAsync(appId, cancellationToken);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var slug = SlugHelper.CreateSlug(title, appId);
+        var slugTaken = await dbContext.Games.AnyAsync(g => g.Slug == slug, cancellationToken);
+        if (slugTaken)
+        {
+            slug = SlugHelper.CreateSlug($"{title}-steam-{appId}", appId);
+        }
+
+        var game = new Game
+        {
+            Id = Guid.NewGuid(),
+            Title = title,
+            SortTitle = title.ToLowerInvariant(),
+            Slug = slug,
+            MetadataStatus = MetadataStatus.Pending,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        game.ExternalIds.Add(new GameExternalId
+        {
+            GameId = game.Id,
+            Source = ExternalIdSource.Steam,
+            ExternalId = appId.ToString()
+        });
+
+        dbContext.Games.Add(game);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return game;
+    }
 }
