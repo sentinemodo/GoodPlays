@@ -39,7 +39,7 @@ export function RecommendationsPanel() {
       {isLoading && <p className="text-slate-400">Loading recommendations…</p>}
       {error && (
         <p className="text-amber-300">
-          Could not load recommendations. Sign in and ensure the API is running.
+          {error instanceof Error ? error.message : 'Could not load recommendations.'}
         </p>
       )}
       {!isLoading && !error && (

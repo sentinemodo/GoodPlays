@@ -10,17 +10,27 @@ export function setApiTokenProvider(provider: GetToken) {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getToken()
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers ?? {}),
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers ?? {}),
+      },
+    })
+  } catch {
+    throw new Error(
+      `Cannot reach the API at ${apiBaseUrl}. Start it with: dotnet run --project src/GoodPlays.Api`,
+    )
+  }
 
   if (!response.ok) {
-    let message = `API request failed: ${response.status}`
+    let message =
+      response.status === 401
+        ? 'Sign in required, or your session expired.'
+        : `API request failed: ${response.status}`
     try {
       const body = (await response.json()) as { message?: string }
       if (body.message) {
