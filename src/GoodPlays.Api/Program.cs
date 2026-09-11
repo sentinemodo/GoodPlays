@@ -103,16 +103,19 @@ if (redisMultiplexer is not null)
 builder.Services.AddTransient<StubRecurringJobs>();
 builder.Services.AddTransient<ImportParseTextJob>();
 builder.Services.AddTransient<SteamSyncJob>();
+builder.Services.AddTransient<PsnSyncJob>();
 
 if (redisMultiplexer is not null)
 {
     builder.Services.AddSingleton<IImportJobScheduler, HangfireImportJobScheduler>();
     builder.Services.AddSingleton<ISteamSyncJobScheduler, HangfireSteamSyncJobScheduler>();
+    builder.Services.AddSingleton<IPsnSyncJobScheduler, HangfirePsnSyncJobScheduler>();
 }
 else
 {
     builder.Services.AddSingleton<IImportJobScheduler, InlineImportJobScheduler>();
     builder.Services.AddScoped<ISteamSyncJobScheduler, InlineSteamSyncJobScheduler>();
+    builder.Services.AddScoped<IPsnSyncJobScheduler, InlinePsnSyncJobScheduler>();
 }
 
 var app = builder.Build();

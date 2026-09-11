@@ -125,5 +125,15 @@ public class ImportServiceTests
 
         public Task<Game?> EnrichFromIgdbAsync(Game game, uint steamAppId, CancellationToken cancellationToken) =>
             Task.FromResult<Game?>(game);
+
+        public Task<Game> ResolveForPsnSyncAsync(string titleId, string psnTitle, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Game?> EnrichFromIgdbForPsnAsync(
+            Game game,
+            string titleId,
+            string psnTitle,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<Game?>(game);
     }
 }

@@ -116,7 +116,7 @@ export type PlatformConnectionSummary = {
   connectedAt: string
 }
 
-export type SteamSyncResult =
+export type PlatformSyncResult =
   | {
       queued: true
       message: string
@@ -130,6 +130,10 @@ export type SteamSyncResult =
       syncedAt: string
       warning: string | null
     }
+
+export type SteamSyncResult = PlatformSyncResult
+
+export type PsnSyncResult = PlatformSyncResult
 
 export const api = {
   getLibrary: () => request<LibraryEntrySummary[]>('/api/v1/library'),
@@ -195,5 +199,44 @@ export const api = {
     }
 
     return body as SteamSyncResult
+  },
+  connectPsn: (npsso: string) =>
+    request<PlatformConnectionSummary>('/api/v1/platforms/psn/connect', {
+      method: 'POST',
+      body: JSON.stringify({ npsso }),
+    }),
+  disconnectPsn: () =>
+    request<void>('/api/v1/platforms/psn', {
+      method: 'DELETE',
+    }),
+  syncPsn: async (): Promise<PsnSyncResult> => {
+    const token = await getToken()
+    const response = await fetch(`${apiBaseUrl}/api/v1/platforms/psn/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+
+    if (!response.ok) {
+      let message = `API request failed: ${response.status}`
+      try {
+        const body = (await response.json()) as { message?: string }
+        if (body.message) {
+          message = body.message
+        }
+      } catch {
+        // ignore non-JSON error bodies
+      }
+      throw new Error(message)
+    }
+
+    const body = (await response.json()) as Record<string, unknown>
+    if ('message' in body && !('addedCount' in body)) {
+      return { queued: true, message: String(body.message) }
+    }
+
+    return body as PsnSyncResult
   },
 }

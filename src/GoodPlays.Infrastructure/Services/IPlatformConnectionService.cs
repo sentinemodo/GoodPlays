@@ -21,4 +21,11 @@ public interface IPlatformConnectionService
         CancellationToken cancellationToken);
 
     Task<bool> DisconnectSteamAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task<PlatformConnectionDto> ConnectPsnAsync(
+        Guid userId,
+        string npsso,
+        CancellationToken cancellationToken);
+
+    Task<bool> DisconnectPsnAsync(Guid userId, CancellationToken cancellationToken);
 }

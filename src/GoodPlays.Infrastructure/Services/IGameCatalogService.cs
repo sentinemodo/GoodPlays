@@ -24,4 +24,12 @@ public interface IGameCatalogService
     Task<Game> ResolveForSteamSyncAsync(uint appId, string steamTitle, CancellationToken cancellationToken);
 
     Task<Game?> EnrichFromIgdbAsync(Game game, uint steamAppId, CancellationToken cancellationToken);
+
+    Task<Game> ResolveForPsnSyncAsync(string titleId, string psnTitle, CancellationToken cancellationToken);
+
+    Task<Game?> EnrichFromIgdbForPsnAsync(
+        Game game,
+        string titleId,
+        string psnTitle,
+        CancellationToken cancellationToken);
 }

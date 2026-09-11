@@ -3,6 +3,7 @@ using GoodPlays.Infrastructure.Metadata;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Infrastructure.Security;
 using GoodPlays.Infrastructure.Services;
+using GoodPlays.Infrastructure.Psn;
 using GoodPlays.Infrastructure.Steam;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IImportService, ImportService>();
         services.AddScoped<IPlatformConnectionService, PlatformConnectionService>();
         services.AddScoped<ISteamSyncService, SteamSyncService>();
+        services.AddScoped<IPsnSyncService, PsnSyncService>();
 
         services.AddDataProtection();
         services.AddSingleton<ITokenEncryptionService, DataProtectionTokenEncryptionService>();
@@ -40,6 +42,16 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://api.steampowered.com/");
             client.Timeout = TimeSpan.FromSeconds(30);
         });
+
+        services.Configure<PsnOptions>(configuration.GetSection(PsnOptions.SectionName));
+        services.AddHttpClient<IPsnClient, PsnClient>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false
+            });
 
         return services;
     }
