@@ -49,6 +49,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+export type LibraryEntrySource =
+  | 'Manual'
+  | 'ImportText'
+  | 'ImportImage'
+  | 'ImportCsv'
+  | 'ResearchReco'
+  | 'SteamSync'
+  | 'PsnSync'
+
 export type LibraryEntrySummary = {
   id: string
   gameId: string
@@ -57,6 +66,7 @@ export type LibraryEntrySummary = {
   status: string
   rating: number | null
   hoursPlayed: number | null
+  source: LibraryEntrySource
   updatedAt: string
 }
 

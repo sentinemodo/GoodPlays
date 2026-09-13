@@ -190,7 +190,8 @@ public sealed class IgdbClient : IIgdbClient
             return null;
         }
 
-        return url.StartsWith("//", StringComparison.Ordinal) ? $"https:{url}" : url;
+        var normalized = url.StartsWith("//", StringComparison.Ordinal) ? $"https:{url}" : url;
+        return normalized.Replace("t_thumb", "t_cover_big", StringComparison.Ordinal);
     }
 
     private sealed class TwitchTokenPayload

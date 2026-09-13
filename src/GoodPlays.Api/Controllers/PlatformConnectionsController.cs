@@ -3,6 +3,7 @@ using GoodPlays.Infrastructure.Services;
 using GoodPlays.Infrastructure.Psn;
 using GoodPlays.Infrastructure.Steam;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace GoodPlays.Api.Controllers;
 
@@ -199,6 +200,14 @@ public class PlatformConnectionsController(
                 PsnApiErrorCode.RateLimited => StatusCode(StatusCodes.Status429TooManyRequests, new { message = ex.Message }),
                 _ => StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message })
             };
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("library_entries", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            var schemaHint = detail.Contains("IX_library_entries_user_id_game_id", StringComparison.Ordinal)
+                ? "The API database is missing the platform-specific library migration. Run: dotnet ef database update --project src/GoodPlays.Infrastructure --startup-project src/GoodPlays.Api (uses DATABASE_URL from .env when set)."
+                : $"Library database conflict: {detail}";
+            return Conflict(new { message = schemaHint });
         }
     }
 

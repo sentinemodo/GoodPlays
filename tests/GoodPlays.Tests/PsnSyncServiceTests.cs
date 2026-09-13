@@ -56,6 +56,51 @@ public class PsnSyncServiceTests
     }
 
     [Fact]
+    public async Task SyncAsync_ReusesExistingGameWhenMultiplePsnTitleIdsMatchSameTitle()
+    {
+        var encryption = new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider());
+        var (context, userId, _) = await SeedPsnConnectionAsync(encryption);
+        await using (context)
+        {
+            var existingGame = new Game
+            {
+                Id = Guid.NewGuid(),
+                Title = "Hades",
+                SortTitle = "hades",
+                Slug = "hades",
+                MetadataStatus = MetadataStatus.Complete,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            existingGame.ExternalIds.Add(new GameExternalId
+            {
+                GameId = existingGame.Id,
+                Source = ExternalIdSource.Psn,
+                ExternalId = "CUSA27300_00"
+            });
+            context.Games.Add(existingGame);
+            await context.SaveChangesAsync();
+
+            var service = CreateService(context, encryption, new FakePsnClient([
+                new PsnTitleStat("CUSA27300_00", "Hades", 10m, null, null, 5, "ps5_native_game"),
+                new PsnTitleStat("CUSA15081_00", "Hades", 4m, null, null, 2, "ps4_game")
+            ]));
+
+            var result = await service.SyncAsync(userId, CancellationToken.None);
+
+            Assert.Equal(2, result.AddedCount);
+            Assert.Equal(0, result.UpdatedCount);
+            Assert.Equal(2, await context.LibraryEntries.CountAsync());
+            Assert.Contains(
+                await context.LibraryEntries.ToListAsync(),
+                e => e.Source == LibraryEntrySource.PsnSync && e.PlatformExternalId == "CUSA27300_00");
+            Assert.Contains(
+                await context.LibraryEntries.ToListAsync(),
+                e => e.Source == LibraryEntrySource.PsnSync && e.PlatformExternalId == "CUSA15081_00");
+        }
+    }
+
+    [Fact]
     public async Task SyncAsync_SkipsPlaytimeUpdateWhenLocked()
     {
         var encryption = new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider());
@@ -85,8 +130,9 @@ public class PsnSyncServiceTests
                 GameId = game.Id,
                 HoursPlayed = 1m,
                 HoursPlayedLocked = true,
-                HoursPlayedSource = HoursPlayedSource.Manual,
-                Source = LibraryEntrySource.Manual,
+                HoursPlayedSource = HoursPlayedSource.Psn,
+                Source = LibraryEntrySource.PsnSync,
+                PlatformExternalId = "CUSA27300_00",
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow
             });
@@ -101,7 +147,7 @@ public class PsnSyncServiceTests
             Assert.Equal(1, result.SkippedCount);
             var entry = await context.LibraryEntries.SingleAsync();
             Assert.Equal(1m, entry.HoursPlayed);
-            Assert.Equal(HoursPlayedSource.Manual, entry.HoursPlayedSource);
+            Assert.Equal(HoursPlayedSource.Psn, entry.HoursPlayedSource);
         }
     }
 

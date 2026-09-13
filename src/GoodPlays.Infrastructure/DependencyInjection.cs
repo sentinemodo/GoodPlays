@@ -44,6 +44,7 @@ public static class DependencyInjection
         });
 
         services.Configure<PsnOptions>(configuration.GetSection(PsnOptions.SectionName));
+        services.PostConfigure<PsnOptions>(PsnOptions.ApplyDefaults);
         services.AddHttpClient<IPsnClient, PsnClient>(client =>
             {
                 client.Timeout = TimeSpan.FromSeconds(30);

@@ -409,6 +409,11 @@ public sealed class GameCatalogService(
 
         var normalizedTitle = PsnTitleNormalizer.Normalize(psnTitle);
         var results = await SearchAsync(normalizedTitle, cancellationToken);
+        if (results.Count == 0 && !string.Equals(normalizedTitle, psnTitle, StringComparison.OrdinalIgnoreCase))
+        {
+            results = await SearchAsync(psnTitle, cancellationToken);
+        }
+
         var match = results.FirstOrDefault(r =>
                          string.Equals(r.Title, psnTitle, StringComparison.OrdinalIgnoreCase))
                      ?? results.FirstOrDefault(r =>
@@ -420,14 +425,36 @@ public sealed class GameCatalogService(
             return null;
         }
 
-        var enriched = await ImportFromIgdbAsync(match.IgdbId.Value, cancellationToken);
-        if (enriched is null)
+        var igdbGame = await igdbClient.GetGameAsync(match.IgdbId.Value, cancellationToken);
+        if (igdbGame is null)
         {
             return null;
         }
 
-        await AttachPsnExternalIdAsync(enriched.Id, titleId, cancellationToken);
-        return enriched;
+        game.Title = igdbGame.Title;
+        game.SortTitle = igdbGame.Title.ToLowerInvariant();
+        game.Summary = igdbGame.Summary;
+        game.CoverUrl = igdbGame.CoverUrl;
+        game.ReleaseDate = igdbGame.ReleaseDate;
+        game.MetadataStatus = MetadataStatus.Complete;
+        game.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var hasIgdbId = await dbContext.GameExternalIds.AnyAsync(
+            x => x.GameId == game.Id && x.Source == ExternalIdSource.Igdb,
+            cancellationToken);
+        if (!hasIgdbId)
+        {
+            dbContext.GameExternalIds.Add(new GameExternalId
+            {
+                GameId = game.Id,
+                Source = ExternalIdSource.Igdb,
+                ExternalId = match.IgdbId.Value.ToString()
+            });
+        }
+
+        await AttachPsnExternalIdAsync(game.Id, titleId, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return game;
     }
 
     private async Task<Game?> ResolveByPsnTitleAsync(string titleId, string psnTitle, CancellationToken cancellationToken)
@@ -466,6 +493,10 @@ public sealed class GameCatalogService(
             if (local is not null)
             {
                 await AttachPsnExternalIdAsync(local.Id, titleId, cancellationToken);
+                if (local.MetadataStatus != MetadataStatus.Complete || string.IsNullOrEmpty(local.CoverUrl))
+                {
+                    return await EnrichFromIgdbForPsnAsync(local, titleId, psnTitle, cancellationToken) ?? local;
+                }
             }
 
             return local;
@@ -525,38 +556,41 @@ public sealed class GameCatalogService(
 
     private async Task AttachSteamExternalIdAsync(Guid gameId, uint appId, CancellationToken cancellationToken)
     {
-        var externalId = appId.ToString();
-        var exists = await dbContext.GameExternalIds.AnyAsync(
-            x => x.GameId == gameId && x.Source == ExternalIdSource.Steam && x.ExternalId == externalId,
-            cancellationToken);
-
-        if (!exists)
-        {
-            dbContext.GameExternalIds.Add(new GameExternalId
-            {
-                GameId = gameId,
-                Source = ExternalIdSource.Steam,
-                ExternalId = externalId
-            });
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
+        await AttachExternalIdAsync(gameId, ExternalIdSource.Steam, appId.ToString(), cancellationToken);
     }
 
     private async Task AttachPsnExternalIdAsync(Guid gameId, string titleId, CancellationToken cancellationToken)
     {
-        var exists = await dbContext.GameExternalIds.AnyAsync(
-            x => x.GameId == gameId && x.Source == ExternalIdSource.Psn && x.ExternalId == titleId,
-            cancellationToken);
+        await AttachExternalIdAsync(gameId, ExternalIdSource.Psn, titleId, cancellationToken);
+    }
 
-        if (!exists)
+    private async Task AttachExternalIdAsync(
+        Guid gameId,
+        ExternalIdSource source,
+        string externalId,
+        CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.GameExternalIds
+            .FirstOrDefaultAsync(x => x.GameId == gameId && x.Source == source, cancellationToken);
+
+        if (existing is not null)
         {
-            dbContext.GameExternalIds.Add(new GameExternalId
+            if (existing.ExternalId == externalId)
             {
-                GameId = gameId,
-                Source = ExternalIdSource.Psn,
-                ExternalId = titleId
-            });
+                return;
+            }
+
+            existing.ExternalId = externalId;
             await dbContext.SaveChangesAsync(cancellationToken);
+            return;
         }
+
+        dbContext.GameExternalIds.Add(new GameExternalId
+        {
+            GameId = gameId,
+            Source = source,
+            ExternalId = externalId
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

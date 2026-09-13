@@ -97,15 +97,18 @@ public class SteamSyncServiceTests
 
             var result = await service.SyncAsync(userId, CancellationToken.None);
 
-            Assert.Equal(1, result.UpdatedCount);
-            var entry = await context.LibraryEntries.SingleAsync();
-            Assert.Equal(10m, entry.HoursPlayed);
-            Assert.Equal(HoursPlayedSource.Steam, entry.HoursPlayedSource);
+            Assert.Equal(1, result.AddedCount);
+            Assert.Equal(2, await context.LibraryEntries.CountAsync());
+            var steamEntry = await context.LibraryEntries.SingleAsync(e => e.Source == LibraryEntrySource.SteamSync);
+            Assert.Equal(10m, steamEntry.HoursPlayed);
+            Assert.Equal(HoursPlayedSource.Steam, steamEntry.HoursPlayedSource);
+            var manualEntry = await context.LibraryEntries.SingleAsync(e => e.Source == LibraryEntrySource.Manual);
+            Assert.Equal(1m, manualEntry.HoursPlayed);
         }
     }
 
     [Fact]
-    public async Task SyncAsync_ReconcilesExistingLibraryEntryByTitle()
+    public async Task SyncAsync_CreatesSeparateSteamEntryWhenManualEntryExistsForSameTitle()
     {
         var encryption = new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider());
         var (context, userId, _) = await SeedSteamConnectionAsync(encryption);
@@ -146,10 +149,13 @@ public class SteamSyncServiceTests
 
             var result = await service.SyncAsync(userId, CancellationToken.None);
 
-            Assert.Equal(1, result.UpdatedCount);
-            var entry = await context.LibraryEntries.SingleAsync();
-            Assert.Equal(igdbGame.Id, entry.GameId);
-            Assert.Equal(20m, entry.HoursPlayed);
+            Assert.Equal(1, result.AddedCount);
+            Assert.Equal(2, await context.LibraryEntries.CountAsync());
+            var steamEntry = await context.LibraryEntries.SingleAsync(e => e.Source == LibraryEntrySource.SteamSync);
+            Assert.Equal(igdbGame.Id, steamEntry.GameId);
+            Assert.Equal(20m, steamEntry.HoursPlayed);
+            var manualEntry = await context.LibraryEntries.SingleAsync(e => e.Source == LibraryEntrySource.Manual);
+            Assert.Null(manualEntry.HoursPlayed);
             Assert.Contains(
                 context.GameExternalIds,
                 x => x.GameId == igdbGame.Id && x.Source == ExternalIdSource.Steam && x.ExternalId == "553850");
@@ -186,8 +192,9 @@ public class SteamSyncServiceTests
                 GameId = game.Id,
                 HoursPlayed = 1m,
                 HoursPlayedLocked = true,
-                HoursPlayedSource = HoursPlayedSource.Manual,
-                Source = LibraryEntrySource.Manual,
+                HoursPlayedSource = HoursPlayedSource.Steam,
+                Source = LibraryEntrySource.SteamSync,
+                PlatformExternalId = "1145360",
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow
             });
@@ -202,7 +209,7 @@ public class SteamSyncServiceTests
             Assert.Equal(1, result.SkippedCount);
             var entry = await context.LibraryEntries.SingleAsync();
             Assert.Equal(1m, entry.HoursPlayed);
-            Assert.Equal(HoursPlayedSource.Manual, entry.HoursPlayedSource);
+            Assert.Equal(HoursPlayedSource.Steam, entry.HoursPlayedSource);
         }
     }
 

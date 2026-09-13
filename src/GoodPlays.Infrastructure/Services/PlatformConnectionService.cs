@@ -117,8 +117,15 @@ public sealed class PlatformConnectionService(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(npsso);
 
-        var tokens = await psnClient.ExchangeNpssoAsync(npsso.Trim(), cancellationToken);
-        var accountId = PsnJwtHelper.TryGetSubject(tokens.IdToken) ?? "me";
+        var tokens = await psnClient.ExchangeNpssoAsync(NpssoParser.Normalize(npsso), cancellationToken);
+        var accountId = PsnJwtHelper.TryGetSubject(tokens.IdToken);
+        if (string.IsNullOrWhiteSpace(accountId))
+        {
+            throw new PsnApiException(
+                PsnApiErrorCode.Unauthorized,
+                "PSN token response did not include an account ID.");
+        }
+
         var profile = await psnClient.GetProfileAsync(tokens.AccessToken, accountId, cancellationToken);
 
         var now = DateTimeOffset.UtcNow;

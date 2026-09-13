@@ -294,8 +294,13 @@ namespace GoodPlays.Infrastructure.Migrations
 
                     b.HasIndex("GameId");
 
-                    b.HasIndex("UserId", "GameId")
-                        .IsUnique();
+                    b.HasIndex("UserId", "GameId", "Source")
+                        .IsUnique()
+                        .HasFilter("platform_external_id IS NULL");
+
+                    b.HasIndex("UserId", "Source", "PlatformExternalId")
+                        .IsUnique()
+                        .HasFilter("platform_external_id IS NOT NULL");
 
                     b.HasIndex("UserId", "Status");
 

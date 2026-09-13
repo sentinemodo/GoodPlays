@@ -150,7 +150,8 @@ export function PsnConnectionPanel() {
         <a href={NPSSO_URL} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">
           Sony&apos;s SSOCookie endpoint
         </a>
-        . Tokens expire after ~60 days — reconnect when sync fails.
+        . Copy only the 64-character token value (not the whole JSON). Tokens expire after ~60 days — reconnect when
+        sync fails.
       </p>
 
       {connectionsQuery.isLoading && <p className="mt-4 text-sm text-slate-400">Loading connection…</p>}

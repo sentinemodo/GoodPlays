@@ -11,6 +11,21 @@ import { api } from '../lib/api'
 
 const hasClerk = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
 
+function platformLabel(source: string) {
+  switch (source) {
+    case 'SteamSync':
+      return 'Steam'
+    case 'PsnSync':
+      return 'PlayStation'
+    case 'Manual':
+      return 'Manual'
+    case 'ImportText':
+      return 'Import'
+    default:
+      return null
+  }
+}
+
 function LibraryContent() {
   useApiAuth()
   const queryClient = useQueryClient()
@@ -88,7 +103,14 @@ function LibraryContent() {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-100">{entry.gameTitle}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-slate-100">{entry.gameTitle}</p>
+                        {platformLabel(entry.source) && (
+                          <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                            {platformLabel(entry.source)}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400">
                         {entry.status}
                         {entry.rating != null ? ` · ${entry.rating}/10` : ''}
@@ -119,7 +141,7 @@ function LibraryContent() {
 
 export function LibraryPage() {
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-6 py-12">
+    <main className="mx-auto max-w-4xl px-6 py-12">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <p className="text-sm text-emerald-400">Your collection</p>

@@ -93,16 +93,19 @@ public sealed class SteamSyncService(
         CancellationToken cancellationToken)
     {
         var game = await gameCatalogService.ResolveForSteamSyncAsync(steamGame.AppId, steamGame.Name, cancellationToken);
-        game = await ReconcileWithExistingLibraryGameAsync(userId, game, steamGame, cancellationToken);
 
-        if (game.MetadataStatus == MetadataStatus.Pending)
+        if (game.MetadataStatus == MetadataStatus.Pending || string.IsNullOrEmpty(game.CoverUrl))
         {
             game = await gameCatalogService.EnrichFromIgdbAsync(game, steamGame.AppId, cancellationToken) ?? game;
         }
 
         var appIdStr = steamGame.AppId.ToString();
         var entry = await dbContext.LibraryEntries
-            .FirstOrDefaultAsync(e => e.UserId == userId && e.GameId == game.Id, cancellationToken);
+            .FirstOrDefaultAsync(
+                e => e.UserId == userId &&
+                     e.Source == LibraryEntrySource.SteamSync &&
+                     e.PlatformExternalId == appIdStr,
+                cancellationToken);
 
         var lastPlayed = steamGame.LastPlayedUnix is > 0
             ? DateOnly.FromDateTime(DateTimeOffset.FromUnixTimeSeconds(steamGame.LastPlayedUnix.Value).UtcDateTime)
@@ -164,83 +167,6 @@ public sealed class SteamSyncService(
         }
 
         return SyncOutcome.Skipped;
-    }
-
-    private async Task<Game> ReconcileWithExistingLibraryGameAsync(
-        Guid userId,
-        Game resolvedGame,
-        SteamOwnedGame steamGame,
-        CancellationToken cancellationToken)
-    {
-        var normalizedTitle = SteamTitleNormalizer.Normalize(steamGame.Name);
-        var userEntries = await dbContext.LibraryEntries
-            .Include(e => e.Game)
-            .ThenInclude(g => g.ExternalIds)
-            .Where(e => e.UserId == userId)
-            .ToListAsync(cancellationToken);
-
-        var titleMatch = userEntries.FirstOrDefault(e =>
-            SteamTitleNormalizer.Normalize(e.Game.Title) == normalizedTitle);
-
-        if (titleMatch is null || titleMatch.GameId == resolvedGame.Id)
-        {
-            return resolvedGame;
-        }
-
-        var existingGame = titleMatch.Game;
-        var preferred = HasIgdbMetadata(existingGame) && !HasIgdbMetadata(resolvedGame)
-            ? existingGame
-            : resolvedGame.MetadataStatus == MetadataStatus.Complete && !HasIgdbMetadata(existingGame)
-                ? resolvedGame
-                : HasIgdbMetadata(existingGame)
-                    ? existingGame
-                    : resolvedGame;
-
-        if (preferred.MetadataStatus == MetadataStatus.Pending)
-        {
-            preferred = await gameCatalogService.EnrichFromIgdbAsync(preferred, steamGame.AppId, cancellationToken)
-                ?? preferred;
-        }
-
-        if (titleMatch.GameId != preferred.Id)
-        {
-            var targetExists = userEntries.Any(e => e.GameId == preferred.Id);
-            if (!targetExists)
-            {
-                titleMatch.GameId = preferred.Id;
-                titleMatch.UpdatedAt = DateTimeOffset.UtcNow;
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-            else
-            {
-                MergeLibraryEntryData(userEntries.First(e => e.GameId == preferred.Id), titleMatch, steamGame);
-                dbContext.LibraryEntries.Remove(titleMatch);
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-        }
-
-        return preferred;
-    }
-
-    private static bool HasIgdbMetadata(Game game) =>
-        game.MetadataStatus == MetadataStatus.Complete ||
-        game.ExternalIds.Any(x => x.Source == ExternalIdSource.Igdb);
-
-    private static void MergeLibraryEntryData(
-        LibraryEntry target,
-        LibraryEntry duplicate,
-        SteamOwnedGame steamGame)
-    {
-        if (!target.HoursPlayedLocked && duplicate.HoursPlayed is not null)
-        {
-            target.HoursPlayed = duplicate.HoursPlayed;
-            target.HoursPlayedSource = duplicate.HoursPlayedSource;
-        }
-
-        target.StartedAt ??= duplicate.StartedAt;
-        target.Rating ??= duplicate.Rating;
-        target.PlatformExternalId = steamGame.AppId.ToString();
-        target.UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     private enum SyncOutcome

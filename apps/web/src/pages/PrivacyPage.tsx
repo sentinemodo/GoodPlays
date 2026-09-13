@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 
 export function PrivacyPage() {
   return (
-    <main className="mx-auto min-h-screen max-w-2xl px-6 py-16">
+    <main className="mx-auto max-w-2xl px-6 py-16">
       <Link to="/" className="text-sm text-slate-400 hover:text-slate-200">
         ← Back home
       </Link>
