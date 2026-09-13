@@ -1,6 +1,7 @@
 import { ClerkProvider } from '@clerk/clerk-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router'
+import { AppLayout } from './components/AppLayout'
 import { appRoute } from './lib/routing'
 import { HomePage } from './pages/HomePage'
 import { LibraryPage } from './pages/LibraryPage'
@@ -16,10 +17,12 @@ function AppRoutes() {
   return (
     <BrowserRouter basename={routerBasename || undefined}>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/library" element={<LibraryPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/sign-in/*" element={<SignInPage />} />
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/library" element={<LibraryPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/sign-in/*" element={<SignInPage />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   )

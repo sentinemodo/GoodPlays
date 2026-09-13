@@ -17,7 +17,7 @@ function SignedInRecommendations() {
 
 export function HomePage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-16">
+    <main className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16">
       <header className="flex items-center justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.2em] text-emerald-400">GoodPlays</p>

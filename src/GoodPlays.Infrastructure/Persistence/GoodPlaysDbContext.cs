@@ -120,7 +120,12 @@ public class GoodPlaysDbContext(DbContextOptions<GoodPlaysDbContext> options) : 
             entity.Property(e => e.PlatformExternalId).HasColumnName("platform_external_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
-            entity.HasIndex(e => new { e.UserId, e.GameId }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.Source, e.PlatformExternalId })
+                .IsUnique()
+                .HasFilter("platform_external_id IS NOT NULL");
+            entity.HasIndex(e => new { e.UserId, e.GameId, e.Source })
+                .IsUnique()
+                .HasFilter("platform_external_id IS NULL");
             entity.HasIndex(e => new { e.UserId, e.Status });
             entity.HasIndex(e => new { e.UserId, e.UpdatedAt });
         });

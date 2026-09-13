@@ -21,6 +21,7 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
                 e.Status,
                 e.Rating,
                 e.HoursPlayed,
+                e.Source,
                 e.UpdatedAt))
             .ToListAsync(cancellationToken);
     }
@@ -36,8 +37,11 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             return null;
         }
 
+        var source = request.Source ?? LibraryEntrySource.Manual;
         var duplicate = await dbContext.LibraryEntries
-            .AnyAsync(e => e.UserId == userId && e.GameId == request.GameId, cancellationToken);
+            .AnyAsync(
+                e => e.UserId == userId && e.GameId == request.GameId && e.Source == source,
+                cancellationToken);
         if (duplicate)
         {
             return null;
@@ -52,7 +56,7 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             Status = request.Status ?? LibraryStatus.Owned,
             Rating = request.Rating,
             HoursPlayed = request.HoursPlayed,
-            Source = request.Source ?? LibraryEntrySource.Manual,
+            Source = source,
             Visibility = Visibility.Public,
             CreatedAt = now,
             UpdatedAt = now
@@ -75,6 +79,7 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             entry.Status,
             entry.Rating,
             entry.HoursPlayed,
+            entry.Source,
             entry.UpdatedAt);
     }
 
@@ -119,6 +124,7 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             entry.Status,
             entry.Rating,
             entry.HoursPlayed,
+            entry.Source,
             entry.UpdatedAt);
     }
 

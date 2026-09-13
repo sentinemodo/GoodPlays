@@ -10,6 +10,7 @@ public sealed record LibraryEntryDto(
     LibraryStatus Status,
     short? Rating,
     decimal? HoursPlayed,
+    LibraryEntrySource Source,
     DateTimeOffset UpdatedAt);
 
 public sealed record CreateLibraryEntryRequest(

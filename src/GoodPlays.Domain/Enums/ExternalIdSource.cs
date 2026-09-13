@@ -6,5 +6,6 @@ public enum ExternalIdSource
     Rawg = 1,
     Steam = 2,
     Gog = 3,
-    Opencritic = 4
+    Opencritic = 4,
+    Psn = 5
 }

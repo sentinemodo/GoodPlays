@@ -3,6 +3,7 @@ using GoodPlays.Domain.Enums;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Infrastructure.Security;
 using GoodPlays.Infrastructure.Services;
+using GoodPlays.Infrastructure.Psn;
 using GoodPlays.Infrastructure.Steam;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,7 @@ public class PlatformConnectionServiceTests
             var service = new PlatformConnectionService(
                 context,
                 steamClient,
+                new FakePsnClient(),
                 encryption,
                 NullLogger<PlatformConnectionService>.Instance);
 
@@ -63,6 +65,7 @@ public class PlatformConnectionServiceTests
             var service = new PlatformConnectionService(
                 context,
                 new FakeSteamClient(),
+                new FakePsnClient(),
                 new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider()),
                 NullLogger<PlatformConnectionService>.Instance);
 
@@ -89,6 +92,57 @@ public class PlatformConnectionServiceTests
         });
         await context.SaveChangesAsync();
         return (context, userId);
+    }
+
+    [Fact]
+    public async Task ConnectPsnAsync_PersistsEncryptedTokensAndProfile()
+    {
+        var (context, userId) = await SeedUserAsync();
+        await using (context)
+        {
+            var encryption = new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider());
+            var service = new PlatformConnectionService(
+                context,
+                new FakeSteamClient(),
+                new FakePsnClient(),
+                encryption,
+                NullLogger<PlatformConnectionService>.Instance);
+
+            var connection = await service.ConnectPsnAsync(userId, "test-npsso-token", CancellationToken.None);
+
+            Assert.Equal(PlatformConnectionPlatform.Psn, connection.Platform);
+            Assert.Equal("psn-account-id", connection.ExternalAccountId);
+            Assert.Equal("TestGamer", connection.DisplayName);
+            Assert.True(connection.SyncEnabled);
+
+            var stored = await context.PlatformConnections.SingleAsync();
+            Assert.NotEqual("access-token", stored.AccessTokenEnc);
+            Assert.Equal("access-token", encryption.Decrypt(stored.AccessTokenEnc!));
+            Assert.Equal("refresh-token", encryption.Decrypt(stored.RefreshTokenEnc!));
+        }
+    }
+
+    private sealed class FakePsnClient : IPsnClient
+    {
+        public Task<PsnTokens> ExchangeNpssoAsync(string npsso, CancellationToken cancellationToken) =>
+            Task.FromResult(new PsnTokens(
+                "access-token",
+                "refresh-token",
+                3600,
+                5184000,
+                "eyJhbGciOiJub25lIn0.eyJzdWIiOiJwc24tYWNjb3VudC1pZCJ9."));
+
+        public Task<PsnTokens> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<PsnUserProfile> GetProfileAsync(string accessToken, string accountId, CancellationToken cancellationToken) =>
+            Task.FromResult(new PsnUserProfile(accountId, "TestGamer"));
+
+        public Task<IReadOnlyList<PsnTitleStat>> GetPlayedTitlesAsync(
+            string accessToken,
+            string accountId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<PsnTitleStat>>([]);
     }
 
     private sealed class FakeSteamClient : ISteamClient

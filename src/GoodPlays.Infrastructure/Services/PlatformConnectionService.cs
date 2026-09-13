@@ -2,6 +2,7 @@ using GoodPlays.Domain.Entities;
 using GoodPlays.Domain.Enums;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Infrastructure.Security;
+using GoodPlays.Infrastructure.Psn;
 using GoodPlays.Infrastructure.Steam;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,7 @@ namespace GoodPlays.Infrastructure.Services;
 public sealed class PlatformConnectionService(
     GoodPlaysDbContext dbContext,
     ISteamClient steamClient,
+    IPsnClient psnClient,
     ITokenEncryptionService tokenEncryption,
     ILogger<PlatformConnectionService> logger) : IPlatformConnectionService
 {
@@ -105,6 +107,77 @@ public sealed class PlatformConnectionService(
         dbContext.PlatformConnections.Remove(connection);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Disconnected Steam account for user {UserId}", userId);
+        return true;
+    }
+
+    public async Task<PlatformConnectionDto> ConnectPsnAsync(
+        Guid userId,
+        string npsso,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(npsso);
+
+        var tokens = await psnClient.ExchangeNpssoAsync(NpssoParser.Normalize(npsso), cancellationToken);
+        var accountId = PsnJwtHelper.TryGetSubject(tokens.IdToken);
+        if (string.IsNullOrWhiteSpace(accountId))
+        {
+            throw new PsnApiException(
+                PsnApiErrorCode.Unauthorized,
+                "PSN token response did not include an account ID.");
+        }
+
+        var profile = await psnClient.GetProfileAsync(tokens.AccessToken, accountId, cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+        var existing = await dbContext.PlatformConnections
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.Platform == PlatformConnectionPlatform.Psn, cancellationToken);
+
+        if (existing is null)
+        {
+            existing = new PlatformConnection
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Platform = PlatformConnectionPlatform.Psn,
+                ExternalAccountId = profile.AccountId,
+                CreatedAt = now
+            };
+            dbContext.PlatformConnections.Add(existing);
+        }
+
+        existing.ExternalAccountId = profile.AccountId;
+        existing.DisplayName = profile.OnlineId;
+        existing.AccessTokenEnc = tokenEncryption.Encrypt(tokens.AccessToken);
+        existing.RefreshTokenEnc = tokenEncryption.Encrypt(tokens.RefreshToken);
+        existing.TokenExpiresAt = now.AddSeconds(tokens.ExpiresInSeconds);
+        existing.SyncEnabled = true;
+        existing.UpdatedAt = now;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Connected PSN account {AccountId} for user {UserId}", profile.AccountId, userId);
+
+        return new PlatformConnectionDto(
+            existing.Platform,
+            existing.ExternalAccountId,
+            existing.DisplayName,
+            existing.LastSyncAt,
+            existing.SyncEnabled,
+            existing.CreatedAt);
+    }
+
+    public async Task<bool> DisconnectPsnAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var connection = await dbContext.PlatformConnections
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.Platform == PlatformConnectionPlatform.Psn, cancellationToken);
+
+        if (connection is null)
+        {
+            return false;
+        }
+
+        dbContext.PlatformConnections.Remove(connection);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Disconnected PSN account for user {UserId}", userId);
         return true;
     }
 }

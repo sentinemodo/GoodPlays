@@ -5,14 +5,18 @@ using GoodPlays.Api.Jobs;
 using GoodPlays.Api.Services;
 using GoodPlays.Infrastructure;
 using GoodPlays.Infrastructure.Configuration;
+using GoodPlays.Infrastructure.Metadata;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Ml;
 using Hangfire;
 using Hangfire.Redis.StackExchange;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using StackExchange.Redis;
+
+DotEnvLoader.TryLoad();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -103,16 +107,19 @@ if (redisMultiplexer is not null)
 builder.Services.AddTransient<StubRecurringJobs>();
 builder.Services.AddTransient<ImportParseTextJob>();
 builder.Services.AddTransient<SteamSyncJob>();
+builder.Services.AddTransient<PsnSyncJob>();
 
 if (redisMultiplexer is not null)
 {
     builder.Services.AddSingleton<IImportJobScheduler, HangfireImportJobScheduler>();
     builder.Services.AddSingleton<ISteamSyncJobScheduler, HangfireSteamSyncJobScheduler>();
+    builder.Services.AddSingleton<IPsnSyncJobScheduler, HangfirePsnSyncJobScheduler>();
 }
 else
 {
     builder.Services.AddSingleton<IImportJobScheduler, InlineImportJobScheduler>();
     builder.Services.AddScoped<ISteamSyncJobScheduler, InlineSteamSyncJobScheduler>();
+    builder.Services.AddScoped<IPsnSyncJobScheduler, InlinePsnSyncJobScheduler>();
 }
 
 var app = builder.Build();
@@ -138,6 +145,12 @@ if (string.Equals(app.Configuration["RunDbMigrations"], "true", StringComparison
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+var igdbOptions = app.Services.GetRequiredService<IOptions<IgdbOptions>>().Value;
+if (!igdbOptions.IsConfigured)
+{
+    Log.Warning("IGDB credentials not configured — game covers and metadata enrichment are disabled");
+}
 
 if (app.Environment.IsDevelopment() && redisMultiplexer is not null)
 {
