@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Sparkles } from 'lucide-react'
 import { api } from '../lib/api'
 
 export function RecommendationsPanel() {
@@ -13,76 +14,65 @@ export function RecommendationsPanel() {
     mutationFn: (gameId: string) => api.addToLibrary(gameId, 'Backlog'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library'] })
+      queryClient.invalidateQueries({ queryKey: ['catalog'] })
       queryClient.invalidateQueries({ queryKey: ['recommendations'] })
     },
   })
 
+  const picks = (data ?? []).slice(0, 5)
+
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-      <div className="mb-4 flex items-center justify-between">
+    <section>
+      <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-medium text-slate-100">What to play next</h2>
-          <p className="text-sm text-slate-400">
-            Suggestions based on your library (AI when LLM is configured on the API).
-          </p>
+          <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl">Recommended for you</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Based on your library.</p>
         </div>
         <button
           type="button"
           onClick={() => refetch()}
           disabled={isFetching}
-          className="text-xs text-slate-400 hover:text-slate-200"
+          className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary"
         >
+          <Sparkles className="size-3" />
           Refresh
         </button>
       </div>
 
-      {isLoading && <p className="text-slate-400">Loading recommendations…</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">Loading recommendations…</p>}
       {error && (
-        <p className="text-amber-300">
+        <p className="text-sm text-amber-300">
           {error instanceof Error ? error.message : 'Could not load recommendations.'}
         </p>
       )}
-      {!isLoading && !error && (
-        <>
-          {data && data.length > 0 ? (
-            <ul className="space-y-3">
-              {data.map((reco) => (
-                <li
-                  key={reco.gameId}
-                  className="flex items-start gap-3 rounded-lg border border-slate-800 px-4 py-3"
-                >
-                  {reco.coverUrl ? (
-                    <img
-                      src={reco.coverUrl}
-                      alt=""
-                      className="h-14 w-10 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-14 w-10 items-center justify-center rounded bg-slate-800 text-xs text-slate-500">
-                      ?
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-100">{reco.title}</p>
-                    {reco.reason && <p className="mt-1 text-xs text-slate-400">{reco.reason}</p>}
-                  </div>
-                  <button
-                    type="button"
-                    disabled={addMutation.isPending}
-                    onClick={() => addMutation.mutate(reco.gameId)}
-                    className="shrink-0 rounded-md border border-emerald-700 px-3 py-1 text-xs text-emerald-400 hover:bg-emerald-950"
-                  >
-                    Add
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-slate-400">
-              Add a few games to your library first, then refresh for personalized picks.
-            </p>
-          )}
-        </>
+      {!isLoading && !error && picks.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Add a few games to your library first, then refresh for personalized picks.
+        </p>
+      )}
+      {picks.length > 0 && (
+        <div className="grid grid-cols-5 gap-2 sm:gap-3">
+          {picks.map((reco) => (
+            <article key={reco.gameId} className="min-w-0">
+              {reco.coverUrl ? (
+                <img src={reco.coverUrl} alt="" className="aspect-[3/4] w-full rounded-xl object-cover" />
+              ) : (
+                <div className="flex aspect-[3/4] items-center justify-center rounded-xl bg-muted text-xs text-muted-foreground">
+                  ?
+                </div>
+              )}
+              <p className="mt-1.5 truncate text-xs font-semibold">{reco.title}</p>
+              <button
+                type="button"
+                disabled={addMutation.isPending}
+                onClick={() => addMutation.mutate(reco.gameId)}
+                className="mt-1 text-[11px] font-semibold text-primary hover:underline disabled:opacity-50"
+              >
+                Add
+              </button>
+            </article>
+          ))}
+        </div>
       )}
     </section>
   )

@@ -1,3 +1,6 @@
+import type { CatalogFacets, CatalogFilters, PaginatedCatalog } from './catalogTypes'
+import { buildCatalogQuery } from './catalogTypes'
+
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5280'
 
 export type GetToken = () => Promise<string | null>
@@ -145,8 +148,93 @@ export type SteamSyncResult = PlatformSyncResult
 
 export type PsnSyncResult = PlatformSyncResult
 
+export type UpdateLibraryEntryRequest = {
+  status?: string
+  rating?: number | null
+  hoursPlayed?: number | null
+}
+
+export type GameDetail = {
+  id: string
+  title: string
+  slug: string
+  summary: string | null
+  coverUrl: string | null
+  releaseDate: string | null
+  developer: string | null
+  publisher: string | null
+  gameType: string
+  genres: string[]
+  platforms: string[]
+  dlc: ImportedGame[]
+  stats: {
+    totalPlayers: number
+    activePlayersLast30Days: number
+    totalHours: number
+    avgRating: number | null
+    medianRating: number | null
+    completionRate: number
+    backlogCount: number
+  }
+  ratings: {
+    source: string
+    score: number | null
+    reviewCount: number | null
+    url: string | null
+    fetchedAt: string
+  }[]
+  heroes: { username: string; displayName: string | null; value: number; metric: string }[]
+  achievements: {
+    id: string
+    name: string
+    description: string | null
+    iconUrl: string | null
+    rarityPercent: number | null
+    unlockedByCurrentUser: boolean
+    owners: { username: string; displayName: string | null; unlockedAt: string }[]
+  }[]
+  news: { id: string; source: string; title: string; url: string; publishedAt: string | null }[]
+  comments: {
+    id: string
+    username: string
+    displayName: string | null
+    body: string
+    rating: number | null
+    createdAt: string
+  }[]
+  userLibraryEntry: LibraryEntrySummary | null
+  userTags: string[]
+}
+
+export type TagSummary = { id: string; name: string; slug: string; scope: string }
+export type ShelfSummary = { id: string; name: string; slug: string; gameCount: number }
+
 export const api = {
   getLibrary: () => request<LibraryEntrySummary[]>('/api/v1/library'),
+  browseCatalog: (filters: CatalogFilters) =>
+    request<PaginatedCatalog>(`/api/v1/catalog/games?${buildCatalogQuery(filters)}`),
+  getCatalogFacets: () => request<CatalogFacets>('/api/v1/catalog/facets'),
+  getGame: (slug: string) => request<GameDetail>(`/api/v1/games/${encodeURIComponent(slug)}`),
+  updateLibraryEntry: (entryId: string, body: UpdateLibraryEntryRequest) =>
+    request<LibraryEntrySummary>(`/api/v1/library/${entryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  createComment: (slug: string, body: { body: string; rating?: number | null }) =>
+    request<GameDetail['comments'][0]>(`/api/v1/games/${encodeURIComponent(slug)}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  getTags: () => request<TagSummary[]>('/api/v1/tags'),
+  createTag: (name: string) =>
+    request<TagSummary>('/api/v1/tags', { method: 'POST', body: JSON.stringify({ name }) }),
+  tagGame: (tagSlug: string, gameId: string) =>
+    request<void>(`/api/v1/tags/${encodeURIComponent(tagSlug)}/games/${gameId}`, { method: 'POST' }),
+  untagGame: (tagSlug: string, gameId: string) =>
+    request<void>(`/api/v1/tags/${encodeURIComponent(tagSlug)}/games/${gameId}`, { method: 'DELETE' }),
+  getShelves: () => request<ShelfSummary[]>('/api/v1/shelves'),
+  createShelf: (name: string) =>
+    request<ShelfSummary>('/api/v1/shelves', { method: 'POST', body: JSON.stringify({ name }) }),
   searchGames: (query: string) =>
     request<GameSearchResult[]>(`/api/v1/games/search?q=${encodeURIComponent(query)}`),
   importGame: (igdbId: number) =>

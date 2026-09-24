@@ -36,6 +36,24 @@ public class CloudConnectionResolverTests
     }
 
     [Fact]
+    public void ResolvePostgresConnection_InDevelopment_UsesLocalDockerPostgres()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Default"] = "Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays",
+                ["DATABASE_URL"] = "postgresql://user:pass@neon.example/goodplays?sslmode=require"
+            })
+            .Build();
+
+        var connection = CloudConnectionResolver.ResolvePostgresConnection(configuration, useLocalDevDatabase: true);
+
+        Assert.Equal(
+            "Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays",
+            connection);
+    }
+
+    [Fact]
     public void ResolvePostgresConnection_PrefersDatabaseUrlOverLocalhostDefault()
     {
         var configuration = new ConfigurationBuilder()

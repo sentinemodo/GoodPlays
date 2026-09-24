@@ -18,4 +18,8 @@ public interface ISteamClient
         uint appId,
         string apiKey,
         CancellationToken cancellationToken);
+
+    Task<SteamGameSchema?> GetGameSchemaAsync(uint appId, string? apiKey, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<SteamNewsItem>> GetNewsForAppAsync(uint appId, CancellationToken cancellationToken);
 }

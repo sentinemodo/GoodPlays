@@ -3,9 +3,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router'
 import { AppLayout } from './components/AppLayout'
 import { appRoute } from './lib/routing'
+import { CatalogPage } from './pages/CatalogPage'
+import { GameDetailPage } from './pages/GameDetailPage'
 import { HomePage } from './pages/HomePage'
 import { LibraryPage } from './pages/LibraryPage'
 import { PrivacyPage } from './pages/PrivacyPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { SignInPage } from './pages/SignInPage'
 
 const queryClient = new QueryClient()
@@ -19,7 +22,10 @@ function AppRoutes() {
       <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/library" element={<LibraryPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/games/:slug" element={<GameDetailPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/sign-in/*" element={<SignInPage />} />
         </Route>
@@ -33,14 +39,14 @@ export default function App() {
     return (
       <QueryClientProvider client={queryClient}>
         <div className="p-6 text-amber-300">
-          Set <code className="text-emerald-300">VITE_CLERK_PUBLISHABLE_KEY</code>{' '}
+          Set <code className="text-primary">VITE_CLERK_PUBLISHABLE_KEY</code>{' '}
           {import.meta.env.PROD ? (
             <>
               as a GitHub Actions secret and redeploy Pages (see README).
             </>
           ) : (
             <>
-              in <code className="text-emerald-300">apps/web/.env</code> to enable Clerk auth.
+              in <code className="text-primary">apps/web/.env</code> to enable Clerk auth.
             </>
           )}
         </div>

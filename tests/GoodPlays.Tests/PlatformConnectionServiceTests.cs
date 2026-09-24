@@ -173,5 +173,11 @@ public class PlatformConnectionServiceTests
             string apiKey,
             CancellationToken cancellationToken) =>
             Task.FromResult<SteamPlayerAchievementsResult?>(null);
+
+        public Task<SteamGameSchema?> GetGameSchemaAsync(uint appId, string? apiKey, CancellationToken cancellationToken) =>
+            Task.FromResult<SteamGameSchema?>(null);
+
+        public Task<IReadOnlyList<SteamNewsItem>> GetNewsForAppAsync(uint appId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<SteamNewsItem>>([]);
     }
 }

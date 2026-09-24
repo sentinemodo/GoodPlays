@@ -1,5 +1,40 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: oklch(0.16 0.02 285);
+  --color-foreground: oklch(0.97 0.01 285);
+  --color-card: oklch(0.2 0.03 285);
+  --color-card-foreground: oklch(0.97 0.01 285);
+  --color-primary: oklch(0.65 0.26 300);
+  --color-primary-foreground: oklch(0.99 0.01 300);
+  --color-secondary: oklch(0.27 0.04 285);
+  --color-secondary-foreground: oklch(0.97 0.01 285);
+  --color-muted: oklch(0.25 0.03 285);
+  --color-muted-foreground: oklch(0.72 0.03 285);
+  --color-accent: oklch(0.28 0.06 300);
+  --color-border: oklch(1 0 0 / 10%);
+  --color-cyan: oklch(0.8 0.14 195);
+  --color-xp: oklch(0.82 0.18 130);
+  --color-trophy: oklch(0.82 0.16 85);
+  --color-success: oklch(0.75 0.17 150);
+}
+
 body {
-  @apply min-h-screen bg-slate-950 text-slate-100 antialiased;
+  @apply min-h-screen bg-background font-sans text-foreground antialiased;
+  background-image:
+    radial-gradient(circle at 15% -10%, oklch(0.65 0.26 300 / 0.18), transparent 40%),
+    radial-gradient(circle at 90% 0%, oklch(0.8 0.14 195 / 0.12), transparent 35%);
+  background-attachment: fixed;
+}
+
+@layer utilities {
+  .text-glow {
+    text-shadow: 0 0 24px oklch(0.65 0.26 300 / 0.55);
+  }
+  .ring-glow {
+    box-shadow: 0 0 0 1px oklch(0.65 0.26 300 / 0.4), 0 0 32px oklch(0.65 0.26 300 / 0.25);
+  }
 }

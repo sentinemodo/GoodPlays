@@ -213,6 +213,62 @@ public class SteamSyncServiceTests
         }
     }
 
+    [Fact]
+    public async Task SyncAsync_SetsOwnedForSubHourPlaytimeAndPlayingForRecentActivity()
+    {
+        var encryption = new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider());
+        var (context, userId, _) = await SeedSteamConnectionAsync(encryption);
+        await using (context)
+        {
+            var lowHoursGame = new Game
+            {
+                Id = Guid.NewGuid(),
+                Title = "Short Session",
+                SortTitle = "short session",
+                Slug = "short-session",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            lowHoursGame.ExternalIds.Add(new GameExternalId
+            {
+                GameId = lowHoursGame.Id,
+                Source = ExternalIdSource.Steam,
+                ExternalId = "100"
+            });
+
+            var activeGame = new Game
+            {
+                Id = Guid.NewGuid(),
+                Title = "Active Game",
+                SortTitle = "active game",
+                Slug = "active-game",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            activeGame.ExternalIds.Add(new GameExternalId
+            {
+                GameId = activeGame.Id,
+                Source = ExternalIdSource.Steam,
+                ExternalId = "200"
+            });
+            context.Games.AddRange(lowHoursGame, activeGame);
+            await context.SaveChangesAsync();
+
+            var recentUnix = DateTimeOffset.UtcNow.AddDays(-3).ToUnixTimeSeconds();
+            var service = CreateService(context, encryption, new FakeSteamClient([
+                new SteamOwnedGame(100, "Short Session", 30, 0, recentUnix, 0.5m),
+                new SteamOwnedGame(200, "Active Game", 600, 0, recentUnix, 10m)
+            ]));
+
+            await service.SyncAsync(userId, CancellationToken.None);
+
+            var shortEntry = await context.LibraryEntries.SingleAsync(e => e.PlatformExternalId == "100");
+            var activeEntry = await context.LibraryEntries.SingleAsync(e => e.PlatformExternalId == "200");
+            Assert.Equal(LibraryStatus.Owned, shortEntry.Status);
+            Assert.Equal(LibraryStatus.Playing, activeEntry.Status);
+        }
+    }
+
     private static SteamSyncService CreateService(
         GoodPlaysDbContext context,
         ITokenEncryptionService encryption,
@@ -283,6 +339,12 @@ public class SteamSyncServiceTests
             string apiKey,
             CancellationToken cancellationToken) =>
             Task.FromResult<SteamPlayerAchievementsResult?>(null);
+
+        public Task<SteamGameSchema?> GetGameSchemaAsync(uint appId, string? apiKey, CancellationToken cancellationToken) =>
+            Task.FromResult<SteamGameSchema?>(null);
+
+        public Task<IReadOnlyList<SteamNewsItem>> GetNewsForAppAsync(uint appId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<SteamNewsItem>>([]);
     }
 
     private sealed class FakeIgdbClient : GoodPlays.Infrastructure.Metadata.IIgdbClient
@@ -296,6 +358,9 @@ public class SteamSyncServiceTests
 
         public Task<GoodPlays.Infrastructure.Metadata.IgdbSearchResult?> GetGameAsync(long igdbId, CancellationToken cancellationToken) =>
             Task.FromResult<GoodPlays.Infrastructure.Metadata.IgdbSearchResult?>(null);
+
+        public Task<GoodPlays.Infrastructure.Metadata.IgdbGameDetails?> GetGameDetailsAsync(long igdbId, CancellationToken cancellationToken) =>
+            Task.FromResult<GoodPlays.Infrastructure.Metadata.IgdbGameDetails?>(null);
 
         public Task<long?> FindIgdbIdBySteamAppIdAsync(uint steamAppId, CancellationToken cancellationToken) =>
             Task.FromResult<long?>(null);

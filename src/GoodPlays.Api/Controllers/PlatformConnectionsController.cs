@@ -205,7 +205,7 @@ public class PlatformConnectionsController(
         {
             var detail = ex.InnerException?.Message ?? ex.Message;
             var schemaHint = detail.Contains("IX_library_entries_user_id_game_id", StringComparison.Ordinal)
-                ? "The API database is missing the platform-specific library migration. Run: dotnet ef database update --project src/GoodPlays.Infrastructure --startup-project src/GoodPlays.Api (uses DATABASE_URL from .env when set)."
+                ? "The API database is missing the platform-specific library migration. Run: dotnet ef database update --project src/GoodPlays.Infrastructure --startup-project src/GoodPlays.Api (Development uses the local Docker Postgres)."
                 : $"Library database conflict: {detail}";
             return Conflict(new { message = schemaHint });
         }

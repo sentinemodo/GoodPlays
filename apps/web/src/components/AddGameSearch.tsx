@@ -33,9 +33,9 @@ export function AddGameSearch() {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-      <h2 className="text-lg font-medium text-slate-100">Add a game</h2>
-      <p className="mt-1 text-sm text-slate-400">
+    <section className="rounded-2xl border border-border bg-card/60 p-6">
+      <h2 className="text-lg font-medium text-foreground">Add a game</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
         Search IGDB (when configured) or your local catalog, then add to your library.
       </p>
 
@@ -45,24 +45,24 @@ export function AddGameSearch() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search games…"
-          className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-foreground0"
         />
         <button
           type="submit"
-          className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
         >
           Search
         </button>
       </form>
 
-      {searchQuery.isFetching && <p className="mt-4 text-sm text-slate-400">Searching…</p>}
+      {searchQuery.isFetching && <p className="mt-4 text-sm text-muted-foreground">Searching…</p>}
 
       {searchQuery.error && (
         <p className="mt-4 text-sm text-amber-300">Search failed. Is the API running?</p>
       )}
 
       {searchQuery.data && searchQuery.data.length === 0 && debouncedQuery.length >= 2 && (
-        <p className="mt-4 text-sm text-slate-400">No matches for “{debouncedQuery}”.</p>
+        <p className="mt-4 text-sm text-muted-foreground">No matches for “{debouncedQuery}”.</p>
       )}
 
       {searchQuery.data && searchQuery.data.length > 0 && (
@@ -75,7 +75,7 @@ export function AddGameSearch() {
             return (
               <li
                 key={key}
-                className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   {result.coverUrl ? (
@@ -85,13 +85,13 @@ export function AddGameSearch() {
                       className="h-12 w-9 rounded object-cover"
                     />
                   ) : (
-                    <div className="flex h-12 w-9 items-center justify-center rounded bg-slate-800 text-xs text-slate-500">
+                    <div className="flex h-12 w-9 items-center justify-center rounded bg-muted text-xs text-foreground0">
                       ?
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-100">{result.title}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="truncate text-sm font-medium text-foreground">{result.title}</p>
+                    <p className="text-xs text-foreground0">
                       {result.source === 'igdb' ? 'IGDB' : 'In catalog'}
                     </p>
                   </div>
@@ -100,7 +100,7 @@ export function AddGameSearch() {
                   type="button"
                   disabled={addMutation.isPending || (result.source === 'igdb' && !result.igdbId)}
                   onClick={() => addMutation.mutate(result)}
-                  className="shrink-0 rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-950 disabled:opacity-50"
+                  className="shrink-0 rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 disabled:opacity-50"
                 >
                   {isAdding ? 'Adding…' : 'Add'}
                 </button>

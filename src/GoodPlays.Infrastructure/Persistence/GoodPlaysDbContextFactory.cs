@@ -11,9 +11,13 @@ public class GoodPlaysDbContextFactory : IDesignTimeDbContextFactory<GoodPlaysDb
     {
         DotEnvLoader.TryLoad();
 
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        var useLocalDevDatabase = string.IsNullOrWhiteSpace(environment)
+            || string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase);
+
         var configurationValues = new Dictionary<string, string?>();
         var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-        if (!string.IsNullOrWhiteSpace(databaseUrl))
+        if (!useLocalDevDatabase && !string.IsNullOrWhiteSpace(databaseUrl))
         {
             configurationValues["DATABASE_URL"] = databaseUrl;
         }
@@ -28,7 +32,7 @@ public class GoodPlaysDbContextFactory : IDesignTimeDbContextFactory<GoodPlaysDb
             .AddInMemoryCollection(configurationValues)
             .Build();
 
-        var resolvedConnection = CloudConnectionResolver.ResolvePostgresConnection(configuration);
+        var resolvedConnection = CloudConnectionResolver.ResolvePostgresConnection(configuration, useLocalDevDatabase);
 
         var optionsBuilder = new DbContextOptionsBuilder<GoodPlaysDbContext>();
         optionsBuilder.UseNpgsql(resolvedConnection, npgsql =>

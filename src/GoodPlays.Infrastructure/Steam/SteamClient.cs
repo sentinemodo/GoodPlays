@@ -147,6 +147,66 @@ public sealed class SteamClient(HttpClient httpClient, ILogger<SteamClient> logg
         return new SteamPlayerAchievementsResult(appId, payload.PlayerStats.Success == 1, achievements);
     }
 
+    public async Task<SteamGameSchema?> GetGameSchemaAsync(
+        uint appId,
+        string? apiKey,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return null;
+        }
+
+        try
+        {
+            var url =
+                $"ISteamUserStats/GetSchemaForGame/v2/?key={Uri.EscapeDataString(apiKey)}&appid={appId}&format=json";
+            using var response = await SendAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var payload = await DeserializeAsync<SchemaResponse>(response, cancellationToken);
+            var defs = payload?.Game?.AvailableGameStats?.Achievements?
+                .Select(a => new SteamAchievementDefinition(a.Name, a.DisplayName, a.Description, a.Icon))
+                .ToList() ?? [];
+
+            return new SteamGameSchema(appId, defs);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Steam schema fetch failed for app {AppId}", appId);
+            return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<SteamNewsItem>> GetNewsForAppAsync(uint appId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var url = $"ISteamNews/GetNewsForApp/v2/?appid={appId}&count=10&maxlength=300&format=json";
+            using var response = await SendAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return [];
+            }
+
+            var payload = await DeserializeAsync<NewsResponse>(response, cancellationToken);
+            return payload?.AppNews?.NewsItems?
+                .Select(n => new SteamNewsItem(
+                    n.Title ?? "News",
+                    n.Url ?? $"https://store.steampowered.com/news/app/{appId}",
+                    n.Date is null ? null : DateTimeOffset.FromUnixTimeSeconds(n.Date.Value)))
+                .ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Steam news fetch failed for app {AppId}", appId);
+            return [];
+        }
+    }
+
     private Task<HttpResponseMessage> SendAsync(string relativeUrl, CancellationToken cancellationToken) =>
         httpClient.GetAsync(relativeUrl, cancellationToken);
 
@@ -276,5 +336,51 @@ public sealed class SteamClient(HttpClient httpClient, ILogger<SteamClient> logg
 
         [JsonPropertyName("unlocktime")]
         public long? UnlockTime { get; set; }
+    }
+
+    private sealed class SchemaResponse
+    {
+        public SchemaGamePayload? Game { get; set; }
+    }
+
+    private sealed class SchemaGamePayload
+    {
+        [JsonPropertyName("availableGameStats")]
+        public SchemaStatsPayload? AvailableGameStats { get; set; }
+    }
+
+    private sealed class SchemaStatsPayload
+    {
+        public List<SchemaAchievementPayload>? Achievements { get; set; }
+    }
+
+    private sealed class SchemaAchievementPayload
+    {
+        public string? Name { get; set; }
+
+        [JsonPropertyName("displayName")]
+        public string? DisplayName { get; set; }
+
+        public string? Description { get; set; }
+        public string? Icon { get; set; }
+    }
+
+    private sealed class NewsResponse
+    {
+        [JsonPropertyName("appnews")]
+        public NewsBodyPayload? AppNews { get; set; }
+    }
+
+    private sealed class NewsBodyPayload
+    {
+        [JsonPropertyName("newsitems")]
+        public List<NewsItemPayload>? NewsItems { get; set; }
+    }
+
+    private sealed class NewsItemPayload
+    {
+        public string? Title { get; set; }
+        public string? Url { get; set; }
+        public long? Date { get; set; }
     }
 }

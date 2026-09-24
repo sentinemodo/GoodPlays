@@ -45,6 +45,21 @@ public enum SteamApiErrorCode
     ServerError = 5
 }
 
+public sealed record SteamAchievementDefinition(
+    string? Name,
+    string? DisplayName,
+    string? Description,
+    string? Icon);
+
+public sealed record SteamGameSchema(
+    uint AppId,
+    IReadOnlyList<SteamAchievementDefinition> Achievements);
+
+public sealed record SteamNewsItem(
+    string Title,
+    string Url,
+    DateTimeOffset? PublishedAt);
+
 public sealed class SteamApiException : Exception
 {
     public SteamApiException(SteamApiErrorCode errorCode, string message)

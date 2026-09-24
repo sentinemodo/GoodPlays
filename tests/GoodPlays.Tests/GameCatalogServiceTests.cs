@@ -74,6 +74,29 @@ public class GameCatalogServiceTests
         public Task<IgdbSearchResult?> GetGameAsync(long igdbId, CancellationToken cancellationToken) =>
             Task.FromResult(Game?.IgdbId == igdbId ? Game : null);
 
+        public Task<IgdbGameDetails?> GetGameDetailsAsync(long igdbId, CancellationToken cancellationToken)
+        {
+            if (Game?.IgdbId != igdbId)
+            {
+                return Task.FromResult<IgdbGameDetails?>(null);
+            }
+
+            return Task.FromResult<IgdbGameDetails?>(new IgdbGameDetails(
+                Game.IgdbId,
+                Game.Title,
+                Game.Slug,
+                Game.CoverUrl,
+                Game.Summary,
+                Game.ReleaseDate,
+                null,
+                null,
+                GameType.Base,
+                null,
+                [],
+                [],
+                []));
+        }
+
         public Task<long?> FindIgdbIdBySteamAppIdAsync(uint steamAppId, CancellationToken cancellationToken) =>
             Task.FromResult<long?>(null);
     }

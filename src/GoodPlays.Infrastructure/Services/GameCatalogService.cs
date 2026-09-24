@@ -106,12 +106,24 @@ public sealed class GameCatalogService(
 
         if (existingExternal?.Game is not null)
         {
-            if (steamAppId is not null)
+            var existingGame = existingExternal.Game;
+            if ((!await HasGenresAsync(existingGame.Id, cancellationToken) || !HasCover(existingGame)) &&
+                igdbClient.IsConfigured)
             {
-                await AttachSteamExternalIdAsync(existingExternal.Game.Id, steamAppId.Value, cancellationToken);
+                var existingDetails = await igdbClient.GetGameDetailsAsync(igdbId, cancellationToken);
+                if (existingDetails is not null)
+                {
+                    await IgdbMetadataApplier.ApplyDetailsAsync(dbContext, existingGame, existingDetails, cancellationToken);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
             }
 
-            return existingExternal.Game;
+            if (steamAppId is not null)
+            {
+                await AttachSteamExternalIdAsync(existingGame.Id, steamAppId.Value, cancellationToken);
+            }
+
+            return existingGame;
         }
 
         if (!igdbClient.IsConfigured)
@@ -119,33 +131,38 @@ public sealed class GameCatalogService(
             return null;
         }
 
-        var igdbGame = await igdbClient.GetGameAsync(igdbId, cancellationToken);
-        if (igdbGame is null)
+        var igdbDetails = await igdbClient.GetGameDetailsAsync(igdbId, cancellationToken);
+        if (igdbDetails is null)
         {
             return null;
         }
 
         var now = DateTimeOffset.UtcNow;
-        var slug = igdbGame.Slug ?? SlugHelper.CreateSlug(igdbGame.Title, igdbGame.IgdbId);
+        var slug = igdbDetails.Slug ?? SlugHelper.CreateSlug(igdbDetails.Title, igdbDetails.IgdbId);
         var slugTaken = await dbContext.Games.AnyAsync(g => g.Slug == slug, cancellationToken);
         if (slugTaken)
         {
-            slug = SlugHelper.CreateSlug(igdbGame.Title, igdbGame.IgdbId);
+            slug = SlugHelper.CreateSlug(igdbDetails.Title, igdbDetails.IgdbId);
         }
 
         var game = new Game
         {
             Id = Guid.NewGuid(),
-            Title = igdbGame.Title,
-            SortTitle = igdbGame.Title.ToLowerInvariant(),
+            Title = igdbDetails.Title,
+            SortTitle = igdbDetails.Title.ToLowerInvariant(),
             Slug = slug,
-            Summary = igdbGame.Summary,
-            CoverUrl = igdbGame.CoverUrl,
-            ReleaseDate = igdbGame.ReleaseDate,
+            Summary = igdbDetails.Summary,
+            CoverUrl = igdbDetails.CoverUrl,
+            ReleaseDate = igdbDetails.ReleaseDate,
+            Developer = igdbDetails.Developer,
+            Publisher = igdbDetails.Publisher,
+            GameType = igdbDetails.GameType,
             MetadataStatus = MetadataStatus.Complete,
             CreatedAt = now,
             UpdatedAt = now
         };
+
+        await IgdbMetadataApplier.ApplyDetailsAsync(dbContext, game, igdbDetails, cancellationToken);
 
         game.ExternalIds.Add(new GameExternalId
         {
@@ -222,7 +239,7 @@ public sealed class GameCatalogService(
             .Select(x => x.Game)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (existingSteam?.MetadataStatus == MetadataStatus.Complete)
+        if (existingSteam is not null && await IsIgdbCatalogCompleteAsync(existingSteam, cancellationToken))
         {
             return existingSteam;
         }
@@ -257,7 +274,7 @@ public sealed class GameCatalogService(
 
     public async Task<Game?> EnrichFromIgdbAsync(Game game, uint steamAppId, CancellationToken cancellationToken)
     {
-        if (game.MetadataStatus == MetadataStatus.Complete)
+        if (await IsIgdbCatalogCompleteAsync(game, cancellationToken))
         {
             await AttachSteamExternalIdAsync(game.Id, steamAppId, cancellationToken);
             return game;
@@ -284,19 +301,13 @@ public sealed class GameCatalogService(
             return null;
         }
 
-        var igdbGame = await igdbClient.GetGameAsync(igdbId.Value, cancellationToken);
-        if (igdbGame is null)
+        var igdbDetails = await igdbClient.GetGameDetailsAsync(igdbId.Value, cancellationToken);
+        if (igdbDetails is null)
         {
             return null;
         }
 
-        game.Title = igdbGame.Title;
-        game.SortTitle = igdbGame.Title.ToLowerInvariant();
-        game.Summary = igdbGame.Summary;
-        game.CoverUrl = igdbGame.CoverUrl;
-        game.ReleaseDate = igdbGame.ReleaseDate;
-        game.MetadataStatus = MetadataStatus.Complete;
-        game.UpdatedAt = DateTimeOffset.UtcNow;
+        await IgdbMetadataApplier.ApplyDetailsAsync(dbContext, game, igdbDetails, cancellationToken);
 
         var hasIgdbId = await dbContext.GameExternalIds.AnyAsync(
             x => x.GameId == game.Id && x.Source == ExternalIdSource.Igdb,
@@ -370,7 +381,7 @@ public sealed class GameCatalogService(
             .Select(x => x.Game)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (existingPsn?.MetadataStatus == MetadataStatus.Complete)
+        if (existingPsn is not null && await IsIgdbCatalogCompleteAsync(existingPsn, cancellationToken))
         {
             return existingPsn;
         }
@@ -396,7 +407,7 @@ public sealed class GameCatalogService(
         string psnTitle,
         CancellationToken cancellationToken)
     {
-        if (game.MetadataStatus == MetadataStatus.Complete)
+        if (await IsIgdbCatalogCompleteAsync(game, cancellationToken))
         {
             await AttachPsnExternalIdAsync(game.Id, titleId, cancellationToken);
             return game;
@@ -425,19 +436,13 @@ public sealed class GameCatalogService(
             return null;
         }
 
-        var igdbGame = await igdbClient.GetGameAsync(match.IgdbId.Value, cancellationToken);
-        if (igdbGame is null)
+        var igdbDetails = await igdbClient.GetGameDetailsAsync(match.IgdbId.Value, cancellationToken);
+        if (igdbDetails is null)
         {
             return null;
         }
 
-        game.Title = igdbGame.Title;
-        game.SortTitle = igdbGame.Title.ToLowerInvariant();
-        game.Summary = igdbGame.Summary;
-        game.CoverUrl = igdbGame.CoverUrl;
-        game.ReleaseDate = igdbGame.ReleaseDate;
-        game.MetadataStatus = MetadataStatus.Complete;
-        game.UpdatedAt = DateTimeOffset.UtcNow;
+        await IgdbMetadataApplier.ApplyDetailsAsync(dbContext, game, igdbDetails, cancellationToken);
 
         var hasIgdbId = await dbContext.GameExternalIds.AnyAsync(
             x => x.GameId == game.Id && x.Source == ExternalIdSource.Igdb,
@@ -553,6 +558,16 @@ public sealed class GameCatalogService(
         await dbContext.SaveChangesAsync(cancellationToken);
         return game;
     }
+
+    private static bool HasCover(Game game) => !string.IsNullOrEmpty(game.CoverUrl);
+
+    private Task<bool> HasGenresAsync(Guid gameId, CancellationToken cancellationToken) =>
+        dbContext.GameGenres.AnyAsync(gg => gg.GameId == gameId, cancellationToken);
+
+    private async Task<bool> IsIgdbCatalogCompleteAsync(Game game, CancellationToken cancellationToken) =>
+        game.MetadataStatus == MetadataStatus.Complete &&
+        HasCover(game) &&
+        await HasGenresAsync(game.Id, cancellationToken);
 
     private async Task AttachSteamExternalIdAsync(Guid gameId, uint appId, CancellationToken cancellationToken)
     {

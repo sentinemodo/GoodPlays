@@ -7,7 +7,8 @@ Project-specific AI configuration for the GoodPlays monorepo.
 | Agent | Invoke | Role |
 |-------|--------|------|
 | **project-architect** | `/project-architect` | Strategic architecture; maintains `Architectures/game-library-platform/` |
-| **cicd-release** | `/cicd-release` | CI/CD, Railway, GitHub Pages, versioning |
+| **cicd** | `/cicd` | Operational commands: migrate, restart dev, restart prod, test, commit, push, merge |
+| **cicd-release** | `/cicd-release` | CI/CD pipeline files, Railway, GitHub Pages, versioning |
 | **tdd** | `/tdd` | Test-first implementation (C# + TypeScript) |
 | **website-developer** | `/website-developer` | React SPA features, API integration, UX |
 | **website-tester** | `/website-tester` | Vitest, xUnit, Playwright — tests only |
@@ -34,4 +35,5 @@ Locked decisions: `product-decisions.md`
 - **New feature:** `/project-architect` (if boundaries change) → `/tdd` or `/website-developer`
 - **UI work:** `/website-developer` with `react-frontend` + `typescript-tdd` rules
 - **Reco / ML:** `/machine-learning-expert` + `ml-dotnet` rule
-- **Ship:** `/cicd-release` before merge to `main`
+- **Ship:** `/cicd` `push` or `merge` (runs tests, then restarts prod)
+- **Pipeline changes:** `/cicd-release` before merge to `main`

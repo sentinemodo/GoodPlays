@@ -7,8 +7,14 @@ public static class CloudConnectionResolver
     private const string DefaultPostgres =
         "Host=localhost;Port=5432;Database=goodplays;Username=goodplays;Password=goodplays";
 
-    public static string ResolvePostgresConnection(IConfiguration configuration)
+    public static string ResolvePostgresConnection(IConfiguration configuration, bool useLocalDevDatabase = false)
     {
+        // Development always uses the local Docker Postgres, even when .env sets DATABASE_URL.
+        if (useLocalDevDatabase)
+        {
+            return DefaultPostgres;
+        }
+
         // Cloud env vars must win over localhost defaults baked into appsettings.json.
         var databaseUrl = configuration["DATABASE_URL"];
         if (!string.IsNullOrWhiteSpace(databaseUrl))

@@ -29,9 +29,12 @@ alwaysApply: false
 
 Never commit. Update `.env.example` when adding keys.
 
-## Agent
+## Agents
 
-Use `/cicd-release` for pipeline changes, env documentation, release checklists.
+| Agent | Use for |
+|-------|---------|
+| `/cicd` | `migrate`, `restart dev`, `restart prod`, `test`, `commit`, `push`, `merge` (`scripts/cicd/`) |
+| `/cicd-release` | Pipeline changes, env documentation, release checklists |
 
 ## Local parity
 
