@@ -40,7 +40,8 @@ Decisions: `product-decisions.md`
 | Invoke | Use for |
 |--------|---------|
 | `/project-architect` | Boundaries, stack, ADRs |
-| `/cicd-release` | CI, Railway, Pages |
+| `/cicd` | migrate, restart dev, restart prod, test, commit, push, merge |
+| `/cicd-release` | CI pipeline files, Railway, Pages config |
 | `/tdd` | Test-first backend + shared logic |
 | `/website-developer` | React UI |
 | `/website-tester` | Tests only (no prod edits) |

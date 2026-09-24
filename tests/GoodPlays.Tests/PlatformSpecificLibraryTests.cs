@@ -128,6 +128,9 @@ public class PlatformSpecificLibraryTests
         public Task<GoodPlays.Infrastructure.Metadata.IgdbSearchResult?> GetGameAsync(long igdbId, CancellationToken cancellationToken) =>
             Task.FromResult<GoodPlays.Infrastructure.Metadata.IgdbSearchResult?>(null);
 
+        public Task<GoodPlays.Infrastructure.Metadata.IgdbGameDetails?> GetGameDetailsAsync(long igdbId, CancellationToken cancellationToken) =>
+            Task.FromResult<GoodPlays.Infrastructure.Metadata.IgdbGameDetails?>(null);
+
         public Task<long?> FindIgdbIdBySteamAppIdAsync(uint steamAppId, CancellationToken cancellationToken) =>
             Task.FromResult<long?>(null);
     }
@@ -155,6 +158,12 @@ public class PlatformSpecificLibraryTests
             string apiKey,
             CancellationToken cancellationToken) =>
             Task.FromResult<SteamPlayerAchievementsResult?>(null);
+
+        public Task<SteamGameSchema?> GetGameSchemaAsync(uint appId, string? apiKey, CancellationToken cancellationToken) =>
+            Task.FromResult<SteamGameSchema?>(null);
+
+        public Task<IReadOnlyList<SteamNewsItem>> GetNewsForAppAsync(uint appId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<SteamNewsItem>>([]);
     }
 
     private sealed class FakePsnClient(IReadOnlyList<PsnTitleStat> titles) : IPsnClient

@@ -1,3 +1,4 @@
+using GoodPlays.Api.Services;
 using GoodPlays.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -5,8 +6,24 @@ namespace GoodPlays.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/games")]
-public class GamesController(IGameCatalogService gameCatalogService) : ControllerBase
+public class GamesController(
+    IGameCatalogService gameCatalogService,
+    IGameDetailService gameDetailService,
+    ICurrentUserAccessor currentUserAccessor) : ControllerBase
 {
+    [HttpGet("{slug}")]
+    public async Task<IActionResult> GetBySlug(string slug, CancellationToken cancellationToken)
+    {
+        var user = await currentUserAccessor.GetCurrentUserAsync(cancellationToken);
+        var detail = await gameDetailService.GetBySlugAsync(slug, user?.Id, cancellationToken);
+        if (detail is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(detail);
+    }
+
     [HttpGet("search")]
     public async Task<IActionResult> Search([FromQuery] string? q, CancellationToken cancellationToken)
     {

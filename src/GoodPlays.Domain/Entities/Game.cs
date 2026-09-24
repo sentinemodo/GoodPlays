@@ -16,6 +16,7 @@ public class Game
     public GameType GameType { get; set; } = GameType.Base;
     public Guid? ParentGameId { get; set; }
     public MetadataStatus MetadataStatus { get; set; } = MetadataStatus.Pending;
+    public bool IsHiddenFromCatalog { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
@@ -25,4 +26,11 @@ public class Game
     public ICollection<GameGenre> GameGenres { get; set; } = [];
     public ICollection<GamePlatform> GamePlatforms { get; set; } = [];
     public ICollection<LibraryEntry> LibraryEntries { get; set; } = [];
+    public ICollection<GameRatingCache> RatingCaches { get; set; } = [];
+    public ICollection<GameNewsItem> NewsItems { get; set; } = [];
+    public ICollection<GameEnrichmentRun> EnrichmentRuns { get; set; } = [];
+    public ICollection<Achievement> Achievements { get; set; } = [];
+    public ICollection<GameComment> Comments { get; set; } = [];
+    public ICollection<GameTag> GameTags { get; set; } = [];
+    public ICollection<ShelfEntry> ShelfEntries { get; set; } = [];
 }

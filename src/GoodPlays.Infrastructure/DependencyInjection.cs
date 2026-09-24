@@ -1,5 +1,6 @@
 using GoodPlays.Infrastructure.Configuration;
 using GoodPlays.Infrastructure.Metadata;
+using GoodPlays.Infrastructure.OpenCritic;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Infrastructure.Security;
 using GoodPlays.Infrastructure.Services;
@@ -14,9 +15,12 @@ namespace GoodPlays.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        bool useLocalDevDatabase = false)
     {
-        var connectionString = CloudConnectionResolver.ResolvePostgresConnection(configuration);
+        var connectionString = CloudConnectionResolver.ResolvePostgresConnection(configuration, useLocalDevDatabase);
 
         services.AddDbContext<GoodPlaysDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -26,8 +30,17 @@ public static class DependencyInjection
         services.AddHttpClient<IIgdbClient, IgdbClient>();
 
         services.AddScoped<IGameCatalogService, GameCatalogService>();
+        services.AddScoped<ICatalogService, CatalogService>();
+        services.AddScoped<IGameDetailService, GameDetailService>();
+        services.AddScoped<IGameEnrichmentService, GameEnrichmentService>();
+        services.AddScoped<ICommentService, CommentService>();
+        services.AddScoped<ITagService, TagService>();
+        services.AddScoped<IAchievementSyncService, AchievementSyncService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ILibraryService, LibraryService>();
+
+        services.Configure<OpenCriticOptions>(configuration.GetSection(OpenCriticOptions.SectionName));
+        services.AddHttpClient<IOpenCriticClient, OpenCriticClient>();
         services.AddScoped<IImportService, ImportService>();
         services.AddScoped<IPlatformConnectionService, PlatformConnectionService>();
         services.AddScoped<ISteamSyncService, SteamSyncService>();

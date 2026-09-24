@@ -54,7 +54,7 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             UserId = userId,
             GameId = request.GameId,
             Status = request.Status ?? LibraryStatus.Owned,
-            Rating = request.Rating,
+            Rating = StarRating.Normalize(request.Rating),
             HoursPlayed = request.HoursPlayed,
             Source = source,
             Visibility = Visibility.Public,
@@ -105,7 +105,7 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
 
         if (request.Rating is not null)
         {
-            entry.Rating = request.Rating;
+            entry.Rating = StarRating.Normalize(request.Rating);
         }
 
         if (request.HoursPlayed is not null)

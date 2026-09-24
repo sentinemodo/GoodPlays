@@ -20,11 +20,14 @@ public sealed class HangfireSteamSyncJobScheduler(IBackgroundJobClient backgroun
     }
 }
 
-public sealed class InlineSteamSyncJobScheduler(ISteamSyncService steamSyncService) : ISteamSyncJobScheduler
+public sealed class InlineSteamSyncJobScheduler(
+    ISteamSyncService steamSyncService,
+    IAchievementSyncService achievementSyncService) : ISteamSyncJobScheduler
 {
     public async Task<SteamSyncScheduleResult> ScheduleSyncAsync(Guid userId, CancellationToken cancellationToken)
     {
         var result = await steamSyncService.SyncAsync(userId, cancellationToken);
+        await achievementSyncService.SyncUserSteamAchievementsAsync(userId, cancellationToken);
         return new SteamSyncScheduleResult(false, result);
     }
 }

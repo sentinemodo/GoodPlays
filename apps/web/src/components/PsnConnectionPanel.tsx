@@ -21,11 +21,11 @@ function SyncStatus({ result }: { result: PsnSyncResult }) {
   }
 
   return (
-    <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/50 p-4 text-sm">
-      <p className="text-slate-300">
+    <div className="mt-3 rounded-lg border border-border bg-background/50 p-4 text-sm">
+      <p className="text-foreground/80">
         Synced at <span className="text-blue-400">{formatTimestamp(result.syncedAt)}</span>
       </p>
-      <p className="mt-1 text-slate-400">
+      <p className="mt-1 text-muted-foreground">
         Added {result.addedCount} · Updated {result.updatedCount} · Skipped {result.skippedCount} ·
         Unmatched {result.unmatchedCount}
       </p>
@@ -54,8 +54,8 @@ function ConnectedPsnCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-blue-300">Connected</p>
-          <p className="mt-1 text-slate-100">{connection.displayName ?? connection.externalAccountId}</p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-foreground">{connection.displayName ?? connection.externalAccountId}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             PSN ID {connection.externalAccountId} · Last sync {formatTimestamp(connection.lastSyncAt)}
           </p>
         </div>
@@ -64,14 +64,14 @@ function ConnectedPsnCard({
             type="button"
             onClick={onSync}
             disabled={isSyncing}
-            className="rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-medium text-slate-950 disabled:opacity-50"
+            className="rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             {isSyncing ? 'Syncing…' : 'Sync now'}
           </button>
           <button
             type="button"
             onClick={onDisconnect}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:border-slate-500 hover:text-slate-100"
+            className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground/80 hover:border-border hover:text-foreground"
           >
             Disconnect
           </button>
@@ -142,9 +142,9 @@ export function PsnConnectionPanel() {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-      <h2 className="text-lg font-medium text-slate-100">PlayStation library sync</h2>
-      <p className="mt-1 text-sm text-slate-400">
+    <section className="rounded-2xl border border-border bg-card/60 p-6">
+      <h2 className="text-lg font-medium text-foreground">PlayStation library sync</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
         Link your PlayStation account to import played games and playtime. Sign in at playstation.com, then copy your
         NPSSO token from{' '}
         <a href={NPSSO_URL} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">
@@ -154,7 +154,7 @@ export function PsnConnectionPanel() {
         sync fails.
       </p>
 
-      {connectionsQuery.isLoading && <p className="mt-4 text-sm text-slate-400">Loading connection…</p>}
+      {connectionsQuery.isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading connection…</p>}
       {connectionsQuery.isError && (
         <p className="mt-4 text-sm text-amber-300">Could not load platform connections.</p>
       )}
@@ -179,7 +179,7 @@ export function PsnConnectionPanel() {
             }}
           >
             <div>
-              <label htmlFor="psn-npsso" className="block text-xs font-medium text-slate-400">
+              <label htmlFor="psn-npsso" className="block text-xs font-medium text-muted-foreground">
                 NPSSO token
               </label>
               <input
@@ -189,13 +189,13 @@ export function PsnConnectionPanel() {
                 onChange={(e) => setNpsso(e.target.value)}
                 autoComplete="off"
                 placeholder="64-character token from ssocookie"
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600"
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
               />
             </div>
             <button
               type="submit"
               disabled={!npsso.trim() || connectMutation.isPending}
-              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-slate-950 disabled:opacity-50"
+              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               {connectMutation.isPending ? 'Connecting…' : 'Connect PlayStation'}
             </button>

@@ -84,6 +84,8 @@ public class SteamCatalogResolutionTests
         Assert.Equal("Helldivers 2", enriched!.Title);
         Assert.Equal(MetadataStatus.Complete, enriched.MetadataStatus);
         Assert.NotNull(enriched.CoverUrl);
+        Assert.Contains(context.GameGenres, gg => gg.GameId == stub.Id);
+        Assert.Contains(context.Genres, g => g.Name == "Shooter");
     }
 
     private sealed class MappingIgdbClient(uint steamAppId, long igdbId, IgdbSearchResult game) : IIgdbClient
@@ -96,7 +98,26 @@ public class SteamCatalogResolutionTests
         public Task<IgdbSearchResult?> GetGameAsync(long requestedIgdbId, CancellationToken cancellationToken) =>
             Task.FromResult(requestedIgdbId == igdbId ? game : null);
 
+        public Task<IgdbGameDetails?> GetGameDetailsAsync(long requestedIgdbId, CancellationToken cancellationToken) =>
+            Task.FromResult(requestedIgdbId == igdbId ? ToDetails(game) : null);
+
         public Task<long?> FindIgdbIdBySteamAppIdAsync(uint requestedAppId, CancellationToken cancellationToken) =>
             Task.FromResult(requestedAppId == steamAppId ? igdbId : (long?)null);
+
+        private static IgdbGameDetails ToDetails(IgdbSearchResult game) =>
+            new(
+                game.IgdbId,
+                game.Title,
+                game.Slug,
+                game.CoverUrl,
+                game.Summary,
+                game.ReleaseDate,
+                null,
+                null,
+                GameType.Base,
+                null,
+                [new IgdbNamedRef(5, "Shooter")],
+                [],
+                [new IgdbNamedRef(6, "PC (Microsoft Windows)")]);
     }
 }

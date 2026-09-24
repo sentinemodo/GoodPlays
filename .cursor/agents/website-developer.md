@@ -66,7 +66,7 @@ For visual-only changes, tests optional unless logic changes.
 
 ```bash
 cd apps/web
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:5180
 npm run build
 npm run lint
 npm test

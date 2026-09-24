@@ -1,5 +1,6 @@
 using GoodPlays.Domain.Entities;
 using GoodPlays.Domain.Enums;
+using GoodPlays.Infrastructure.Metadata;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Infrastructure.Psn;
 using GoodPlays.Infrastructure.Security;
@@ -97,6 +98,78 @@ public class PsnSyncServiceTests
             Assert.Contains(
                 await context.LibraryEntries.ToListAsync(),
                 e => e.Source == LibraryEntrySource.PsnSync && e.PlatformExternalId == "CUSA15081_00");
+        }
+    }
+
+    [Fact]
+    public async Task SyncAsync_BackfillsCoverWhenPsnGameHasGenresButNoArt()
+    {
+        var encryption = new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider());
+        var (context, userId, _) = await SeedPsnConnectionAsync(encryption);
+        await using (context)
+        {
+            var genre = new Genre { Id = Guid.NewGuid(), Name = "Action", Slug = "action" };
+            context.Genres.Add(genre);
+
+            var existingGame = new Game
+            {
+                Id = Guid.NewGuid(),
+                Title = "Hades",
+                SortTitle = "hades",
+                Slug = "hades",
+                MetadataStatus = MetadataStatus.Complete,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            existingGame.ExternalIds.Add(new GameExternalId
+            {
+                GameId = existingGame.Id,
+                Source = ExternalIdSource.Psn,
+                ExternalId = "CUSA27300_00"
+            });
+            context.Games.Add(existingGame);
+            context.GameGenres.Add(new GameGenre { GameId = existingGame.Id, GenreId = genre.Id });
+            context.LibraryEntries.Add(new LibraryEntry
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                GameId = existingGame.Id,
+                Source = LibraryEntrySource.PsnSync,
+                PlatformExternalId = "CUSA27300_00",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            });
+            await context.SaveChangesAsync();
+
+            const string coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co1xxy.jpg";
+            var igdb = new ConfigurableIgdbClient(
+                new IgdbSearchResult(42, "Hades", "hades", coverUrl, "Roguelike", null),
+                new IgdbGameDetails(
+                    42,
+                    "Hades",
+                    "hades",
+                    coverUrl,
+                    "Roguelike",
+                    null,
+                    null,
+                    null,
+                    GameType.Base,
+                    null,
+                    [new IgdbNamedRef(1, "Action")],
+                    [],
+                    []));
+
+            var service = new PsnSyncService(
+                context,
+                new FakePsnClient([new PsnTitleStat("CUSA27300_00", "Hades", 10m, null, null, 5, "ps5_native_game")]),
+                new GameCatalogService(context, igdb),
+                encryption,
+                NullLogger<PsnSyncService>.Instance);
+
+            await service.SyncAsync(userId, CancellationToken.None);
+
+            var game = await context.Games.SingleAsync();
+            Assert.Equal(coverUrl, game.CoverUrl);
         }
     }
 
@@ -218,17 +291,35 @@ public class PsnSyncServiceTests
             Task.FromResult(titles);
     }
 
-    private sealed class FakeIgdbClient : GoodPlays.Infrastructure.Metadata.IIgdbClient
+    private sealed class FakeIgdbClient : IIgdbClient
     {
         public bool IsConfigured => false;
 
-        public Task<IReadOnlyList<GoodPlays.Infrastructure.Metadata.IgdbSearchResult>> SearchGamesAsync(
-            string query,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<GoodPlays.Infrastructure.Metadata.IgdbSearchResult>>([]);
+        public Task<IReadOnlyList<IgdbSearchResult>> SearchGamesAsync(string query, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<IgdbSearchResult>>([]);
 
-        public Task<GoodPlays.Infrastructure.Metadata.IgdbSearchResult?> GetGameAsync(long igdbId, CancellationToken cancellationToken) =>
-            Task.FromResult<GoodPlays.Infrastructure.Metadata.IgdbSearchResult?>(null);
+        public Task<IgdbSearchResult?> GetGameAsync(long igdbId, CancellationToken cancellationToken) =>
+            Task.FromResult<IgdbSearchResult?>(null);
+
+        public Task<IgdbGameDetails?> GetGameDetailsAsync(long igdbId, CancellationToken cancellationToken) =>
+            Task.FromResult<IgdbGameDetails?>(null);
+
+        public Task<long?> FindIgdbIdBySteamAppIdAsync(uint steamAppId, CancellationToken cancellationToken) =>
+            Task.FromResult<long?>(null);
+    }
+
+    private sealed class ConfigurableIgdbClient(IgdbSearchResult game, IgdbGameDetails details) : IIgdbClient
+    {
+        public bool IsConfigured => true;
+
+        public Task<IReadOnlyList<IgdbSearchResult>> SearchGamesAsync(string query, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<IgdbSearchResult>>([game]);
+
+        public Task<IgdbSearchResult?> GetGameAsync(long igdbId, CancellationToken cancellationToken) =>
+            Task.FromResult(igdbId == game.IgdbId ? game : null);
+
+        public Task<IgdbGameDetails?> GetGameDetailsAsync(long igdbId, CancellationToken cancellationToken) =>
+            Task.FromResult(igdbId == details.IgdbId ? details : null);
 
         public Task<long?> FindIgdbIdBySteamAppIdAsync(uint steamAppId, CancellationToken cancellationToken) =>
             Task.FromResult<long?>(null);

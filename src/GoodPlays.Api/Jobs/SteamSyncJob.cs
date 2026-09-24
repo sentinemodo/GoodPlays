@@ -3,9 +3,15 @@ using Hangfire;
 
 namespace GoodPlays.Api.Jobs;
 
-public sealed class SteamSyncJob(ISteamSyncService steamSyncService)
+public sealed class SteamSyncJob(
+    ISteamSyncService steamSyncService,
+    IAchievementSyncService achievementSyncService)
 {
     [Queue("default")]
-    public Task<SteamSyncResultDto> RunAsync(Guid userId, CancellationToken cancellationToken) =>
-        steamSyncService.SyncAsync(userId, cancellationToken);
+    public async Task<SteamSyncResultDto> RunAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var result = await steamSyncService.SyncAsync(userId, cancellationToken);
+        await achievementSyncService.SyncUserSteamAchievementsAsync(userId, cancellationToken);
+        return result;
+    }
 }

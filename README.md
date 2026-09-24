@@ -80,7 +80,7 @@ Local builds keep `VITE_BASE_PATH` unset (served from `/`). The Pages workflow s
    npm run dev
    ```
 
-   App: http://localhost:5173
+   App: http://localhost:5180
 
 ## Build & test
 
@@ -120,7 +120,7 @@ Your instance: `https://apt-cat-8367.clerk.accounts.dev` (from publishable key `
 
 There is no separate **Allowed origins** menu in current Clerk UI.
 
-- **Local dev** (`http://localhost:5173`) — works automatically on Development instances.
+- **Local dev** (`http://localhost:5180`) — works automatically on Development instances.
 - **GitHub Pages** — **Configure → Domains → Add domain** → `sentinemodo.github.io`
 
 ### Webhook (local, via ngrok)
@@ -218,10 +218,10 @@ Expect `"status":"Healthy"` when Postgres (and Redis, if configured) are reachab
 
 | Concern | Local | Railway |
 |---------|-------|---------|
-| Postgres | Docker Compose | Neon `DATABASE_URL` |
+| Postgres | Docker Compose (`DATABASE_URL` is ignored) | Neon `DATABASE_URL` |
 | Redis | Docker Compose | Upstash `REDIS_URL` |
 | Import jobs | Inline without Redis | Hangfire with Upstash |
-| Frontend | `localhost:5173` | GitHub Pages + `VITE_API_URL` |
+| Frontend | `localhost:5180` | GitHub Pages + `VITE_API_URL` |
 
 ## Next steps for implementers (Phase 3+)
 

@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GoodPlays.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -48,14 +49,35 @@ public sealed class IgdbClient : IIgdbClient
 
     public async Task<IgdbSearchResult?> GetGameAsync(long igdbId, CancellationToken cancellationToken)
     {
+        var details = await GetGameDetailsAsync(igdbId, cancellationToken);
+        if (details is null)
+        {
+            return null;
+        }
+
+        return new IgdbSearchResult(
+            details.IgdbId,
+            details.Title,
+            details.Slug,
+            details.CoverUrl,
+            details.Summary,
+            details.ReleaseDate);
+    }
+
+    public async Task<IgdbGameDetails?> GetGameDetailsAsync(long igdbId, CancellationToken cancellationToken)
+    {
         if (!IsConfigured)
         {
             return null;
         }
 
-        var body = $"fields id,name,slug,summary,cover.url,first_release_date; where id = {igdbId};";
+        var body =
+            "fields id,name,slug,summary,cover.url,first_release_date,game_type,parent_game," +
+            "genres.name,player_perspectives.name,platforms.name,involved_companies.company.name,involved_companies.developer,involved_companies.publisher; " +
+            $"where id = {igdbId};";
+
         var games = await QueryGamesAsync(body, cancellationToken);
-        return games.Select(MapGame).FirstOrDefault(g => g is not null);
+        return games.Select(MapGameDetails).FirstOrDefault(g => g is not null);
     }
 
     public async Task<long?> FindIgdbIdBySteamAppIdAsync(uint steamAppId, CancellationToken cancellationToken)
@@ -167,12 +189,49 @@ public sealed class IgdbClient : IIgdbClient
 
     private static IgdbSearchResult? MapGame(IgdbGamePayload game)
     {
-        if (game.Id is null || string.IsNullOrWhiteSpace(game.Name))
+        var details = MapGameDetails(game);
+        if (details is null)
         {
             return null;
         }
 
         return new IgdbSearchResult(
+            details.IgdbId,
+            details.Title,
+            details.Slug,
+            details.CoverUrl,
+            details.Summary,
+            details.ReleaseDate);
+    }
+
+    private static IgdbGameDetails? MapGameDetails(IgdbGamePayload game)
+    {
+        if (game.Id is null || string.IsNullOrWhiteSpace(game.Name))
+        {
+            return null;
+        }
+
+        var developer = game.InvolvedCompanies?
+            .FirstOrDefault(c => c.Developer == true)?.Company?.Name;
+        var publisher = game.InvolvedCompanies?
+            .FirstOrDefault(c => c.Publisher == true)?.Company?.Name;
+
+        var genres = game.Genres?
+            .Where(g => g.Id is not null && !string.IsNullOrWhiteSpace(g.Name))
+            .Select(g => new IgdbNamedRef(g.Id!.Value, g.Name!))
+            .ToList() ?? [];
+
+        var playerPerspectives = game.PlayerPerspectives?
+            .Where(p => p.Id is not null && !string.IsNullOrWhiteSpace(p.Name))
+            .Select(p => new IgdbNamedRef(p.Id!.Value, p.Name!))
+            .ToList() ?? [];
+
+        var platforms = game.Platforms?
+            .Where(p => p.Id is not null && !string.IsNullOrWhiteSpace(p.Name))
+            .Select(p => new IgdbNamedRef(p.Id!.Value, p.Name!))
+            .ToList() ?? [];
+
+        return new IgdbGameDetails(
             game.Id.Value,
             game.Name,
             game.Slug,
@@ -180,8 +239,23 @@ public sealed class IgdbClient : IIgdbClient
             game.Summary,
             game.FirstReleaseDate is null
                 ? null
-                : DateOnly.FromDateTime(DateTimeOffset.FromUnixTimeSeconds(game.FirstReleaseDate.Value).UtcDateTime));
+                : DateOnly.FromDateTime(DateTimeOffset.FromUnixTimeSeconds(game.FirstReleaseDate.Value).UtcDateTime),
+            developer,
+            publisher,
+            MapGameType(game.GameType),
+            game.ParentGame,
+            genres,
+            playerPerspectives,
+            platforms);
     }
+
+    private static GameType MapGameType(int? gameType) => gameType switch
+    {
+        1 => GameType.Dlc,
+        2 => GameType.Expansion,
+        3 => GameType.StandaloneExpansion,
+        _ => GameType.Base
+    };
 
     private static string? NormalizeCoverUrl(string? url)
     {
@@ -213,7 +287,40 @@ public sealed class IgdbClient : IIgdbClient
         [JsonPropertyName("first_release_date")]
         public long? FirstReleaseDate { get; set; }
 
+        [JsonPropertyName("game_type")]
+        public int? GameType { get; set; }
+
+        [JsonPropertyName("parent_game")]
+        public long? ParentGame { get; set; }
+
         public IgdbCoverPayload? Cover { get; set; }
+        public List<IgdbNamedPayload>? Genres { get; set; }
+
+        [JsonPropertyName("player_perspectives")]
+        public List<IgdbNamedPayload>? PlayerPerspectives { get; set; }
+
+        public List<IgdbNamedPayload>? Platforms { get; set; }
+
+        [JsonPropertyName("involved_companies")]
+        public List<IgdbInvolvedCompanyPayload>? InvolvedCompanies { get; set; }
+    }
+
+    private sealed class IgdbNamedPayload
+    {
+        public long? Id { get; set; }
+        public string? Name { get; set; }
+    }
+
+    private sealed class IgdbInvolvedCompanyPayload
+    {
+        public IgdbCompanyPayload? Company { get; set; }
+        public bool? Developer { get; set; }
+        public bool? Publisher { get; set; }
+    }
+
+    private sealed class IgdbCompanyPayload
+    {
+        public string? Name { get; set; }
     }
 
     private sealed class IgdbCoverPayload

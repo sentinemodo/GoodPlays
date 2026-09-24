@@ -23,6 +23,51 @@ namespace GoodPlays.Infrastructure.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.Achievement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("external_id");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("fetched_at");
+
+                    b.Property<Guid>("GameId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_id");
+
+                    b.Property<string>("IconUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("icon_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<decimal?>("RarityPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("rarity_pct");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId", "ExternalId")
+                        .IsUnique();
+
+                    b.ToTable("achievements", (string)null);
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.Game", b =>
                 {
                     b.Property<Guid>("Id")
@@ -45,6 +90,12 @@ namespace GoodPlays.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("game_type");
+
+                    b.Property<bool>("IsHiddenFromCatalog")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_hidden_from_catalog");
 
                     b.Property<string>("MetadataStatus")
                         .IsRequired()
@@ -96,6 +147,80 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.ToTable("games", (string)null);
                 });
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("GameId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_id");
+
+                    b.Property<short?>("Rating")
+                        .HasColumnType("smallint")
+                        .HasColumnName("rating");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("visibility");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("GameId", "CreatedAt");
+
+                    b.ToTable("game_comments", (string)null);
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameEnrichmentRun", b =>
+                {
+                    b.Property<Guid>("GameId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_id");
+
+                    b.Property<string>("Kind")
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset?>("LastRunAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("last_run_at");
+
+                    b.Property<DateTimeOffset?>("NextRunAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("next_run_at");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("GameId", "Kind");
+
+                    b.HasIndex("NextRunAt");
+
+                    b.ToTable("game_enrichment_runs", (string)null);
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.GameExternalId", b =>
                 {
                     b.Property<Guid>("GameId")
@@ -136,6 +261,47 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.ToTable("game_genres", (string)null);
                 });
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameNewsItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("fetched_at");
+
+                    b.Property<Guid>("GameId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_id");
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("published_at");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId", "Url")
+                        .IsUnique();
+
+                    b.ToTable("game_news_items", (string)null);
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.GamePlatform", b =>
                 {
                     b.Property<Guid>("GameId")
@@ -151,6 +317,55 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.HasIndex("PlatformId");
 
                     b.ToTable("game_platforms", (string)null);
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameRatingCache", b =>
+                {
+                    b.Property<Guid>("GameId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_id");
+
+                    b.Property<string>("Source")
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("fetched_at");
+
+                    b.Property<int?>("ReviewCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("review_count");
+
+                    b.Property<decimal?>("Score")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("score");
+
+                    b.Property<string>("Url")
+                        .HasColumnType("text")
+                        .HasColumnName("url");
+
+                    b.HasKey("GameId", "Source");
+
+                    b.ToTable("game_ratings_cache", (string)null);
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameTag", b =>
+                {
+                    b.Property<Guid>("GameId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_id");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tag_id");
+
+                    b.HasKey("GameId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("game_tags", (string)null);
                 });
 
             modelBuilder.Entity("GoodPlays.Domain.Entities.Genre", b =>
@@ -294,6 +509,10 @@ namespace GoodPlays.Infrastructure.Migrations
 
                     b.HasIndex("GameId");
 
+                    b.HasIndex("UserId", "Status");
+
+                    b.HasIndex("UserId", "UpdatedAt");
+
                     b.HasIndex("UserId", "GameId", "Source")
                         .IsUnique()
                         .HasFilter("platform_external_id IS NULL");
@@ -301,10 +520,6 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.HasIndex("UserId", "Source", "PlatformExternalId")
                         .IsUnique()
                         .HasFilter("platform_external_id IS NOT NULL");
-
-                    b.HasIndex("UserId", "Status");
-
-                    b.HasIndex("UserId", "UpdatedAt");
 
                     b.ToTable("library_entries", (string)null);
                 });
@@ -400,6 +615,92 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.ToTable("platform_connections", (string)null);
                 });
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.Shelf", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("slug");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Slug")
+                        .IsUnique();
+
+                    b.ToTable("shelves", (string)null);
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.ShelfEntry", b =>
+                {
+                    b.Property<Guid>("ShelfId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shelf_id");
+
+                    b.Property<Guid>("GameId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_id");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("added_at");
+
+                    b.HasKey("ShelfId", "GameId");
+
+                    b.HasIndex("GameId");
+
+                    b.ToTable("shelf_entries", (string)null);
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.Tag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("scope");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("slug");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Slug")
+                        .IsUnique();
+
+                    b.ToTable("tags", (string)null);
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -434,6 +735,27 @@ namespace GoodPlays.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.UserAchievement", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("AchievementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("achievement_id");
+
+                    b.Property<DateTimeOffset>("UnlockedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("unlocked_at");
+
+                    b.HasKey("UserId", "AchievementId");
+
+                    b.HasIndex("AchievementId");
+
+                    b.ToTable("user_achievements", (string)null);
                 });
 
             modelBuilder.Entity("GoodPlays.Domain.Entities.UserProfile", b =>
@@ -479,6 +801,17 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.ToTable("user_profiles", (string)null);
                 });
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.Achievement", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.Game", "Game")
+                        .WithMany("Achievements")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.Game", b =>
                 {
                     b.HasOne("GoodPlays.Domain.Entities.Game", "ParentGame")
@@ -487,6 +820,36 @@ namespace GoodPlays.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ParentGame");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameComment", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.Game", "Game")
+                        .WithMany("Comments")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GoodPlays.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameEnrichmentRun", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.Game", "Game")
+                        .WithMany("EnrichmentRuns")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
                 });
 
             modelBuilder.Entity("GoodPlays.Domain.Entities.GameExternalId", b =>
@@ -519,6 +882,17 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.Navigation("Genre");
                 });
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameNewsItem", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.Game", "Game")
+                        .WithMany("NewsItems")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.GamePlatform", b =>
                 {
                     b.HasOne("GoodPlays.Domain.Entities.Game", "Game")
@@ -536,6 +910,36 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.Navigation("Game");
 
                     b.Navigation("Platform");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameRatingCache", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.Game", "Game")
+                        .WithMany("RatingCaches")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.GameTag", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.Game", "Game")
+                        .WithMany("GameTags")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GoodPlays.Domain.Entities.Tag", "Tag")
+                        .WithMany("GameTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+
+                    b.Navigation("Tag");
                 });
 
             modelBuilder.Entity("GoodPlays.Domain.Entities.ImportJob", b =>
@@ -579,6 +983,64 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.Shelf", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.ShelfEntry", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.Game", "Game")
+                        .WithMany("ShelfEntries")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GoodPlays.Domain.Entities.Shelf", "Shelf")
+                        .WithMany("Entries")
+                        .HasForeignKey("ShelfId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+
+                    b.Navigation("Shelf");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.Tag", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.UserAchievement", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.Achievement", "Achievement")
+                        .WithMany("UserAchievements")
+                        .HasForeignKey("AchievementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GoodPlays.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Achievement");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.UserProfile", b =>
                 {
                     b.HasOne("GoodPlays.Domain.Entities.User", "User")
@@ -590,9 +1052,20 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.Achievement", b =>
+                {
+                    b.Navigation("UserAchievements");
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.Game", b =>
                 {
+                    b.Navigation("Achievements");
+
                     b.Navigation("ChildGames");
+
+                    b.Navigation("Comments");
+
+                    b.Navigation("EnrichmentRuns");
 
                     b.Navigation("ExternalIds");
 
@@ -600,7 +1073,15 @@ namespace GoodPlays.Infrastructure.Migrations
 
                     b.Navigation("GamePlatforms");
 
+                    b.Navigation("GameTags");
+
                     b.Navigation("LibraryEntries");
+
+                    b.Navigation("NewsItems");
+
+                    b.Navigation("RatingCaches");
+
+                    b.Navigation("ShelfEntries");
                 });
 
             modelBuilder.Entity("GoodPlays.Domain.Entities.Genre", b =>
@@ -611,6 +1092,16 @@ namespace GoodPlays.Infrastructure.Migrations
             modelBuilder.Entity("GoodPlays.Domain.Entities.Platform", b =>
                 {
                     b.Navigation("GamePlatforms");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.Shelf", b =>
+                {
+                    b.Navigation("Entries");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.Tag", b =>
+                {
+                    b.Navigation("GameTags");
                 });
 
             modelBuilder.Entity("GoodPlays.Domain.Entities.User", b =>

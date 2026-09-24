@@ -17,6 +17,16 @@ public class GoodPlaysDbContext(DbContextOptions<GoodPlaysDbContext> options) : 
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
+    public DbSet<GameRatingCache> GameRatingCaches => Set<GameRatingCache>();
+    public DbSet<GameNewsItem> GameNewsItems => Set<GameNewsItem>();
+    public DbSet<GameEnrichmentRun> GameEnrichmentRuns => Set<GameEnrichmentRun>();
+    public DbSet<Achievement> Achievements => Set<Achievement>();
+    public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
+    public DbSet<GameComment> GameComments => Set<GameComment>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<GameTag> GameTags => Set<GameTag>();
+    public DbSet<Shelf> Shelves => Set<Shelf>();
+    public DbSet<ShelfEntry> ShelfEntries => Set<ShelfEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +59,7 @@ public class GoodPlaysDbContext(DbContextOptions<GoodPlaysDbContext> options) : 
             entity.Property(e => e.GameType).HasColumnName("game_type").HasConversion<string>();
             entity.Property(e => e.ParentGameId).HasColumnName("parent_game_id");
             entity.Property(e => e.MetadataStatus).HasColumnName("metadata_status").HasConversion<string>();
+            entity.Property(e => e.IsHiddenFromCatalog).HasColumnName("is_hidden_from_catalog").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasIndex(e => e.Slug).IsUnique();
@@ -178,6 +189,119 @@ public class GoodPlaysDbContext(DbContextOptions<GoodPlaysDbContext> options) : 
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasIndex(e => new { e.UserId, e.Platform }).IsUnique();
+        });
+
+        modelBuilder.Entity<GameRatingCache>(entity =>
+        {
+            entity.ToTable("game_ratings_cache");
+            entity.HasKey(e => new { e.GameId, e.Source });
+            entity.Property(e => e.GameId).HasColumnName("game_id");
+            entity.Property(e => e.Source).HasColumnName("source").HasConversion<string>();
+            entity.Property(e => e.Score).HasColumnName("score").HasPrecision(5, 2);
+            entity.Property(e => e.ReviewCount).HasColumnName("review_count");
+            entity.Property(e => e.Url).HasColumnName("url");
+            entity.Property(e => e.FetchedAt).HasColumnName("fetched_at");
+        });
+
+        modelBuilder.Entity<GameNewsItem>(entity =>
+        {
+            entity.ToTable("game_news_items");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.GameId).HasColumnName("game_id");
+            entity.Property(e => e.Source).HasColumnName("source");
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.Url).HasColumnName("url");
+            entity.Property(e => e.PublishedAt).HasColumnName("published_at");
+            entity.Property(e => e.FetchedAt).HasColumnName("fetched_at");
+            entity.HasIndex(e => new { e.GameId, e.Url }).IsUnique();
+        });
+
+        modelBuilder.Entity<GameEnrichmentRun>(entity =>
+        {
+            entity.ToTable("game_enrichment_runs");
+            entity.HasKey(e => new { e.GameId, e.Kind });
+            entity.Property(e => e.GameId).HasColumnName("game_id");
+            entity.Property(e => e.Kind).HasColumnName("kind").HasConversion<string>();
+            entity.Property(e => e.LastRunAt).HasColumnName("last_run_at");
+            entity.Property(e => e.NextRunAt).HasColumnName("next_run_at");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.HasIndex(e => e.NextRunAt);
+        });
+
+        modelBuilder.Entity<Achievement>(entity =>
+        {
+            entity.ToTable("achievements");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.GameId).HasColumnName("game_id");
+            entity.Property(e => e.ExternalId).HasColumnName("external_id");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.IconUrl).HasColumnName("icon_url");
+            entity.Property(e => e.RarityPercent).HasColumnName("rarity_pct").HasPrecision(5, 2);
+            entity.Property(e => e.FetchedAt).HasColumnName("fetched_at");
+            entity.HasIndex(e => new { e.GameId, e.ExternalId }).IsUnique();
+        });
+
+        modelBuilder.Entity<UserAchievement>(entity =>
+        {
+            entity.ToTable("user_achievements");
+            entity.HasKey(e => new { e.UserId, e.AchievementId });
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.AchievementId).HasColumnName("achievement_id");
+            entity.Property(e => e.UnlockedAt).HasColumnName("unlocked_at");
+        });
+
+        modelBuilder.Entity<GameComment>(entity =>
+        {
+            entity.ToTable("game_comments");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.GameId).HasColumnName("game_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Body).HasColumnName("body");
+            entity.Property(e => e.Rating).HasColumnName("rating");
+            entity.Property(e => e.Visibility).HasColumnName("visibility").HasConversion<string>();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(e => new { e.GameId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<Tag>(entity =>
+        {
+            entity.ToTable("tags");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.Slug).HasColumnName("slug");
+            entity.Property(e => e.Scope).HasColumnName("scope").HasConversion<string>();
+            entity.HasIndex(e => new { e.UserId, e.Slug }).IsUnique();
+        });
+
+        modelBuilder.Entity<GameTag>(entity =>
+        {
+            entity.ToTable("game_tags");
+            entity.HasKey(e => new { e.GameId, e.TagId });
+            entity.Property(e => e.GameId).HasColumnName("game_id");
+            entity.Property(e => e.TagId).HasColumnName("tag_id");
+        });
+
+        modelBuilder.Entity<Shelf>(entity =>
+        {
+            entity.ToTable("shelves");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.Slug).HasColumnName("slug");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.HasIndex(e => new { e.UserId, e.Slug }).IsUnique();
+        });
+
+        modelBuilder.Entity<ShelfEntry>(entity =>
+        {
+            entity.ToTable("shelf_entries");
+            entity.HasKey(e => new { e.ShelfId, e.GameId });
+            entity.Property(e => e.ShelfId).HasColumnName("shelf_id");
+            entity.Property(e => e.GameId).HasColumnName("game_id");
+            entity.Property(e => e.AddedAt).HasColumnName("added_at");
         });
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())

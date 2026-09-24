@@ -48,7 +48,8 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-builder.Services.AddInfrastructure(builder.Configuration);
+var useLocalDevDatabase = builder.Environment.IsDevelopment();
+builder.Services.AddInfrastructure(builder.Configuration, useLocalDevDatabase);
 builder.Services.AddMlServices(builder.Configuration);
 
 IConnectionMultiplexer? redisMultiplexer = null;
@@ -80,7 +81,7 @@ builder.Services.AddClerkAuthentication(builder.Configuration);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ViteDev", policy =>
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("http://localhost:5180", "http://127.0.0.1:5180")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -94,7 +95,7 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
-var connectionString = CloudConnectionResolver.ResolvePostgresConnection(builder.Configuration);
+var connectionString = CloudConnectionResolver.ResolvePostgresConnection(builder.Configuration, useLocalDevDatabase);
 var healthChecks = builder.Services.AddHealthChecks()
     .AddNpgSql(connectionString, name: "postgres")
     .AddCheck("ml", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Research recommendation engine ready (Phase 1)"));
@@ -108,6 +109,8 @@ builder.Services.AddTransient<StubRecurringJobs>();
 builder.Services.AddTransient<ImportParseTextJob>();
 builder.Services.AddTransient<SteamSyncJob>();
 builder.Services.AddTransient<PsnSyncJob>();
+builder.Services.AddTransient<GameEnrichmentJobs>();
+builder.Services.AddTransient<AchievementSyncJob>();
 
 if (redisMultiplexer is not null)
 {
@@ -152,10 +155,15 @@ if (!igdbOptions.IsConfigured)
     Log.Warning("IGDB credentials not configured — game covers and metadata enrichment are disabled");
 }
 
-if (app.Environment.IsDevelopment() && redisMultiplexer is not null)
+if (redisMultiplexer is not null)
 {
-    app.UseHangfireDashboard("/hangfire");
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseHangfireDashboard("/hangfire");
+    }
+
     StubRecurringJobs.Register();
+    GameEnrichmentJobs.RegisterWeekly(app.Services.GetRequiredService<IRecurringJobManager>());
 }
 
 app.Run();

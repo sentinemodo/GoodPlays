@@ -8,5 +8,7 @@ public interface IIgdbClient
 
     Task<IgdbSearchResult?> GetGameAsync(long igdbId, CancellationToken cancellationToken);
 
+    Task<IgdbGameDetails?> GetGameDetailsAsync(long igdbId, CancellationToken cancellationToken);
+
     Task<long?> FindIgdbIdBySteamAppIdAsync(uint steamAppId, CancellationToken cancellationToken);
 }

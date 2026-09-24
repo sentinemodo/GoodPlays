@@ -94,9 +94,13 @@ public sealed class SteamSyncService(
     {
         var game = await gameCatalogService.ResolveForSteamSyncAsync(steamGame.AppId, steamGame.Name, cancellationToken);
 
-        if (game.MetadataStatus == MetadataStatus.Pending || string.IsNullOrEmpty(game.CoverUrl))
+        game = await gameCatalogService.EnrichFromIgdbAsync(game, steamGame.AppId, cancellationToken) ?? game;
+
+        if (GameBlacklist.IsNonGameApplication(steamGame.Name) && !game.IsHiddenFromCatalog)
         {
-            game = await gameCatalogService.EnrichFromIgdbAsync(game, steamGame.AppId, cancellationToken) ?? game;
+            game.IsHiddenFromCatalog = true;
+            game.UpdatedAt = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
         var appIdStr = steamGame.AppId.ToString();
@@ -119,7 +123,10 @@ public sealed class SteamSyncService(
                 Id = Guid.NewGuid(),
                 UserId = userId,
                 GameId = game.Id,
-                Status = steamGame.PlaytimeForeverMinutes > 0 ? LibraryStatus.Playing : LibraryStatus.Owned,
+                Status = LibraryStatusRules.InferFromPlayActivity(
+                    steamGame.PlaytimeHours,
+                    lastPlayed,
+                    LibraryStatus.Owned),
                 HoursPlayed = steamGame.PlaytimeHours,
                 HoursPlayedSource = HoursPlayedSource.Steam,
                 Source = LibraryEntrySource.SteamSync,
@@ -148,15 +155,20 @@ public sealed class SteamSyncService(
             }
         }
 
-        if (lastPlayed is not null && entry.StartedAt is null)
+        var latestLastPlayed = LibraryStatusRules.PickLatestLastPlayed(entry.StartedAt, lastPlayed);
+        if (latestLastPlayed != entry.StartedAt)
         {
-            entry.StartedAt = lastPlayed;
+            entry.StartedAt = latestLastPlayed;
             changed = true;
         }
 
-        if (steamGame.PlaytimeForeverMinutes > 0 && entry.Status == LibraryStatus.Backlog)
+        var inferredStatus = LibraryStatusRules.InferFromPlayActivity(
+            entry.HoursPlayed,
+            entry.StartedAt,
+            entry.Status);
+        if (inferredStatus != entry.Status)
         {
-            entry.Status = LibraryStatus.Playing;
+            entry.Status = inferredStatus;
             changed = true;
         }
 
