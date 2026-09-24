@@ -13,11 +13,25 @@ if (-not $RailwayOnly) {
         exit $LASTEXITCODE
     }
 
+    function ConvertTo-GhRuns {
+        param([string]$Json)
+        if ([string]::IsNullOrWhiteSpace($Json)) {
+            return @()
+        }
+
+        $parsed = $Json | ConvertFrom-Json
+        if ($null -eq $parsed) {
+            return @()
+        }
+
+        return @($parsed)
+    }
+
     Write-Host 'Redeploying GitHub Pages from main'
     $beforeRaw = gh run list --workflow 'Deploy GitHub Pages' --limit 1 --json databaseId
     $beforeId = ''
-    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($beforeRaw)) {
-        $before = @($beforeRaw | ConvertFrom-Json | Where-Object { $_ })
+    if ($LASTEXITCODE -eq 0) {
+        $before = ConvertTo-GhRuns $beforeRaw
         if ($before.Count -gt 0) {
             $beforeId = [string]$before[0].databaseId
         }
@@ -37,9 +51,13 @@ if (-not $RailwayOnly) {
             continue
         }
 
-        $newest = @($raw | ConvertFrom-Json) | Where-Object { $_ } | Select-Object -First 1
-        if ($newest -and [string]$newest.databaseId -ne $beforeId -and $newest.headBranch -eq 'main') {
-            $runId = [string]$newest.databaseId
+        $runs = ConvertTo-GhRuns $raw
+        if ($runs.Count -gt 0) {
+            $newest = $runs[0]
+            $id = [string]$newest.databaseId
+            if ($id -ne $beforeId -and $newest.headBranch -eq 'main') {
+                $runId = $id
+            }
         }
     } while ([string]::IsNullOrWhiteSpace($runId) -and (Get-Date) -lt $deadline)
 
