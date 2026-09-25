@@ -268,6 +268,74 @@ public class CatalogServiceTests
         Assert.Equal("Visible Game", result.Items[0].Title);
     }
 
+    [Fact]
+    public async Task BrowseAsync_ReleaseDateSort_RespectsAscending()
+    {
+        var options = new DbContextOptionsBuilder<GoodPlaysDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        var context = new GoodPlaysDbContext(options);
+        var older = CreateGame("Older", "older");
+        older.ReleaseDate = new DateOnly(2001, 1, 1);
+        var newer = CreateGame("Newer", "newer");
+        newer.ReleaseDate = new DateOnly(2020, 1, 1);
+        context.Games.AddRange(older, newer);
+        await context.SaveChangesAsync();
+
+        var service = new CatalogService(context);
+        var ascending = await service.BrowseAsync(
+            null,
+            new CatalogQuery(Sort: CatalogSortField.ReleaseDate, Descending: false),
+            CancellationToken.None);
+
+        Assert.Equal("Older", ascending.Items[0].Title);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_LastPlayedSort_PutsMostRecentFirst()
+    {
+        var options = new DbContextOptionsBuilder<GoodPlaysDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        var context = new GoodPlaysDbContext(options);
+        var userId = Guid.NewGuid();
+        var recent = CreateGame("Recent Run", "recent-run");
+        var older = CreateGame("Older Run", "older-run");
+        context.Games.AddRange(recent, older);
+        context.LibraryEntries.AddRange(
+            new LibraryEntry
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                GameId = older.Id,
+                Source = LibraryEntrySource.SteamSync,
+                StartedAt = new DateOnly(2020, 1, 1),
+                Visibility = Visibility.Public,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            },
+            new LibraryEntry
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                GameId = recent.Id,
+                Source = LibraryEntrySource.SteamSync,
+                StartedAt = new DateOnly(2024, 6, 1),
+                Visibility = Visibility.Public,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            });
+        await context.SaveChangesAsync();
+
+        var service = new CatalogService(context);
+        var result = await service.BrowseAsync(
+            userId,
+            new CatalogQuery(InLibrary: true, Sort: CatalogSortField.LastPlayed),
+            CancellationToken.None);
+
+        Assert.Equal("Recent Run", result.Items[0].Title);
+    }
+
     private static Game CreateGame(string title, string slug)
     {
         var now = DateTimeOffset.UtcNow;
