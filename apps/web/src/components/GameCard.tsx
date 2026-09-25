@@ -1,9 +1,11 @@
+import { Star } from 'lucide-react'
 import { Link } from 'react-router'
 import type { CatalogGame } from '../lib/catalogTypes'
 import { formatLibrarySource } from '../lib/libraryLabels'
 import { multiPlatformMarks } from '../lib/platformMarks'
 import { halfStarsToDisplay } from '../lib/ratings'
 import { GameTagEditor } from './GameTagEditor'
+import { SyncGameButton } from './SyncGameButton'
 import { StarRatingDisplay } from './StarRating'
 
 function PlatformMarks({ platforms }: { platforms: string[] }) {
@@ -60,6 +62,7 @@ type GameCardProps = {
   variant?: 'base' | 'dlc'
   showTagEditor?: boolean
   showMultiPlatform?: boolean
+  onToggleLoved?: (game: CatalogGame) => void
 }
 
 export function GameCard({
@@ -68,12 +71,27 @@ export function GameCard({
   variant = 'base',
   showTagEditor = false,
   showMultiPlatform = false,
+  onToggleLoved,
 }: GameCardProps) {
   const platformMarks = showMultiPlatform ? <PlatformMarks platforms={game.platforms} /> : null
+  const lovedButton =
+    onToggleLoved && game.libraryEntryId && variant === 'base' ? (
+      <button
+        type="button"
+        aria-pressed={game.isLoved ?? false}
+        aria-label={game.isLoved ? 'Unstar most loved game' : 'Star as most loved game'}
+        onClick={() => onToggleLoved(game)}
+        className={`rounded-full border p-1.5 ${
+          game.isLoved ? 'border-trophy bg-trophy/15 text-trophy' : 'border-border text-muted-foreground hover:text-trophy'
+        }`}
+      >
+        <Star className={`size-4 ${game.isLoved ? 'fill-current' : ''}`} />
+      </button>
+    ) : null
 
   if (view === 'grid' && variant === 'base') {
     return (
-      <div className="group overflow-hidden rounded-xl border border-border bg-card/60 transition hover:border-primary/50">
+      <div className="group relative overflow-hidden rounded-xl border border-border bg-card/60 transition hover:border-primary/50">
         <Link to={`/games/${game.slug}`}>
           {game.coverUrl ? (
             <img src={game.coverUrl} alt="" className="aspect-[3/4] w-full object-cover" />
@@ -89,6 +107,12 @@ export function GameCard({
             </p>
           </div>
         </Link>
+        {(lovedButton || game.libraryEntryId) && (
+          <div className="absolute right-2 top-2 flex items-center gap-1">
+            {game.libraryEntryId && <SyncGameButton entryId={game.libraryEntryId} source={game.librarySource} />}
+            {lovedButton}
+          </div>
+        )}
         {game.dlc.length > 0 && (
           <div className="grid grid-cols-4 gap-1 border-t border-border p-2">
             {game.dlc.slice(0, 4).map((dlc) => (
@@ -127,9 +151,10 @@ export function GameCard({
         isDlc ? 'ml-6 border-dashed bg-background/40' : ''
       }`}
     >
+    <div className={`flex items-center gap-3 px-4 py-3 ${isDlc ? 'py-2' : ''}`}>
     <Link
       to={`/games/${game.slug}`}
-      className={`flex items-center gap-3 px-4 py-3 ${isDlc ? 'py-2' : ''}`}
+      className="flex min-w-0 flex-1 items-center gap-3"
     >
       {game.coverUrl ? (
         <img
@@ -174,6 +199,11 @@ export function GameCard({
         </p>
       </div>
     </Link>
+    <div className="flex items-center gap-1">
+      {game.libraryEntryId && <SyncGameButton entryId={game.libraryEntryId} source={game.librarySource} />}
+      {lovedButton}
+    </div>
+    </div>
     {showTagEditor && !isDlc && game.libraryEntryId && (
       <div className="px-4 pb-2">
         <GameTagEditor gameId={game.id} gameTags={game.userTags} compact />

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { GameTagEditor } from '../components/GameTagEditor'
+import { canSyncFromPlatform, SyncGameButton } from '../components/SyncGameButton'
 import { StarRatingInput } from '../components/StarRating'
 import { useApiAuth } from '../hooks/useApiAuth'
 import { api, type GameDetail, type UpdateLibraryEntryRequest } from '../lib/api'
@@ -246,22 +247,30 @@ function GameDetailView({
                 }
               />
             </div>
-            <label className="text-sm text-muted-foreground">
-              Hours
-              <input
-                type="number"
-                min={0}
-                step={0.1}
-                value={entry.hoursPlayed ?? ''}
-                onChange={(e) =>
-                  onUpdateLibrary({
-                    entryId: entry.id,
-                    body: { hoursPlayed: e.target.value === '' ? null : Number(e.target.value) },
-                  })
-                }
-                className="ml-2 w-20 rounded border border-border bg-secondary px-2 py-1 text-foreground"
-              />
-            </label>
+            {canSyncFromPlatform(entry.source) ? (
+              <p className="text-sm text-muted-foreground">
+                Hours <span className="text-foreground">{entry.hoursPlayed ?? 0}</span>
+              </p>
+            ) : (
+              <label className="text-sm text-muted-foreground">
+                Hours
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={entry.hoursPlayed ?? ''}
+                  onChange={(e) =>
+                    onUpdateLibrary({
+                      entryId: entry.id,
+                      body: { hoursPlayed: e.target.value === '' ? null : Number(e.target.value) },
+                    })
+                  }
+                  className="ml-2 w-20 rounded border border-border bg-secondary px-2 py-1 text-foreground"
+                />
+                <span className="mt-1 block text-xs">Edited hours stay out of rankings.</span>
+              </label>
+            )}
+            <SyncGameButton entryId={entry.id} source={entry.source} />
           </div>
         </section>
       )}

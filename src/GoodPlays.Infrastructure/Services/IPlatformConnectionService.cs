@@ -1,4 +1,6 @@
 using GoodPlays.Domain.Enums;
+using GoodPlays.Infrastructure.Nintendo;
+using GoodPlays.Infrastructure.Xbox;
 
 namespace GoodPlays.Infrastructure.Services;
 
@@ -28,4 +30,20 @@ public interface IPlatformConnectionService
         CancellationToken cancellationToken);
 
     Task<bool> DisconnectPsnAsync(Guid userId, CancellationToken cancellationToken);
+
+    XboxLoginRequest CreateXboxLogin();
+
+    Task<PlatformConnectionDto> ConnectXboxAsync(Guid userId, string callbackUrl, CancellationToken cancellationToken);
+
+    Task<bool> DisconnectXboxAsync(Guid userId, CancellationToken cancellationToken);
+
+    NintendoLoginRequest CreateSwitchLogin();
+
+    Task<PlatformConnectionDto> ConnectSwitchAsync(
+        Guid userId,
+        string callbackUrl,
+        string? codeVerifier,
+        CancellationToken cancellationToken);
+
+    Task<bool> DisconnectSwitchAsync(Guid userId, CancellationToken cancellationToken);
 }

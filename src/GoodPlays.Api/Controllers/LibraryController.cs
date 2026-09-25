@@ -8,6 +8,7 @@ namespace GoodPlays.Api.Controllers;
 [Route("api/v1/library")]
 public class LibraryController(
     ILibraryService libraryService,
+    ILibraryEntrySyncService libraryEntrySyncService,
     ICurrentUserAccessor currentUserAccessor) : ControllerBase
 {
     [HttpGet]
@@ -60,7 +61,15 @@ public class LibraryController(
             return Unauthorized();
         }
 
-        var entry = await libraryService.UpdateAsync(user.Id, entryId, request, cancellationToken);
+        LibraryEntryDto? entry;
+        try
+        {
+            entry = await libraryService.UpdateAsync(user.Id, entryId, request, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
         if (entry is null)
         {
             return NotFound();
@@ -85,6 +94,26 @@ public class LibraryController(
         }
 
         return NoContent();
+    }
+
+    [HttpPost("{entryId:guid}/sync")]
+    public async Task<IActionResult> SyncLibraryEntry(Guid entryId, CancellationToken cancellationToken)
+    {
+        var user = await currentUserAccessor.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            await libraryEntrySyncService.SyncAsync(user.Id, entryId, cancellationToken);
+            return Accepted(new { message = "Game sync finished." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{entryId:guid}/loved")]

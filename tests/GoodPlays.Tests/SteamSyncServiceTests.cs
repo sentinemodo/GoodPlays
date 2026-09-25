@@ -269,6 +269,36 @@ public class SteamSyncServiceTests
         }
     }
 
+    [Fact]
+    public async Task SyncAsync_ReportsProgressWhileProcessingGames()
+    {
+        var encryption = new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider());
+        var (context, userId, _) = await SeedSteamConnectionAsync(encryption);
+        await using (context)
+        {
+            var updates = new List<SyncProgressUpdate>();
+            var service = CreateService(context, encryption, new FakeSteamClient([
+                new SteamOwnedGame(1145360, "Hades", 600, 0, null, 10m)
+            ]));
+
+            await service.SyncAsync(
+                userId,
+                CancellationToken.None,
+                (update, _) =>
+                {
+                    updates.Add(update);
+                    return Task.CompletedTask;
+                });
+
+            Assert.Contains(updates, update => update.Phase == "Fetching from Steam" && update.ProcessedCount == 0);
+            Assert.Contains(updates, update =>
+                update.Phase == "Updating Steam library" &&
+                update.ProcessedCount == 1 &&
+                update.TotalCount == 1 &&
+                update.AddedCount == 1);
+        }
+    }
+
     private static SteamSyncService CreateService(
         GoodPlaysDbContext context,
         ITokenEncryptionService encryption,

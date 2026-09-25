@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import type { CatalogFacets, CatalogFilters } from '../lib/catalogTypes'
 
@@ -103,8 +104,7 @@ export function CatalogSidebar({ facets, filters, basePath, onFilterChange, side
         </div>
       )}
 
-      <FacetList
-        title="Categories"
+      <CategoryFacetList
         items={facets?.categories ?? []}
         active={filters.genre}
         onSelect={(slug) => onFilterChange({ genre: filters.genre === slug ? undefined : slug, page: 1 })}
@@ -160,6 +160,56 @@ export function CatalogSidebar({ facets, filters, basePath, onFilterChange, side
         </div>
       </div>
     </aside>
+  )
+}
+
+function CategoryFacetList({
+  items,
+  active,
+  onSelect,
+}: {
+  items: { slug: string; name: string; count: number }[]
+  active?: string
+  onSelect: (slug: string) => void
+}) {
+  const [showOther, setShowOther] = useState(false)
+  if (items.length === 0) {
+    return null
+  }
+
+  const top = items.slice(0, 10)
+  const rest = items.slice(10)
+  const visible = showOther ? items : top
+
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground0">Categories</p>
+      <ul className="space-y-1 text-sm">
+        {visible.map((item) => (
+          <li key={item.slug}>
+            <button
+              type="button"
+              onClick={() => onSelect(item.slug)}
+              className={`flex w-full items-center justify-between rounded px-2 py-1 text-left ${
+                active === item.slug ? 'bg-primary/15 text-primary' : 'text-foreground/80 hover:bg-muted'
+              }`}
+            >
+              <span className="truncate">{item.name}</span>
+              <span className="ml-2 shrink-0 text-xs text-foreground0">{item.count}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {rest.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowOther((open) => !open)}
+          className="mt-2 px-2 text-xs font-medium text-primary hover:underline"
+        >
+          {showOther ? 'Hide other categories' : `Other categories (${rest.length})`}
+        </button>
+      )}
+    </div>
   )
 }
 

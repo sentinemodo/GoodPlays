@@ -559,6 +559,78 @@ public sealed class GameCatalogService(
         return game;
     }
 
+    public async Task<Game> ResolveForExternalTitleAsync(
+        ExternalIdSource source,
+        string titleId,
+        string title,
+        CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.GameExternalIds
+            .Include(x => x.Game)
+            .Where(x => x.Source == source && x.ExternalId == titleId)
+            .Select(x => x.Game)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var normalizedTitle = PsnTitleNormalizer.Normalize(title);
+        var results = await SearchAsync(normalizedTitle, cancellationToken);
+        var exact = results.FirstOrDefault(r =>
+                        string.Equals(r.Title, title, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(PsnTitleNormalizer.Normalize(r.Title), normalizedTitle, StringComparison.OrdinalIgnoreCase));
+        if (exact is not null)
+        {
+            if (exact.Id != Guid.Empty)
+            {
+                var local = await dbContext.Games.FirstOrDefaultAsync(g => g.Id == exact.Id, cancellationToken);
+                if (local is not null)
+                {
+                    await AttachExternalIdAsync(local.Id, source, titleId, cancellationToken);
+                    return local;
+                }
+            }
+
+            if (exact.IgdbId is > 0)
+            {
+                var imported = await ImportFromIgdbAsync(exact.IgdbId.Value, cancellationToken);
+                if (imported is not null)
+                {
+                    await AttachExternalIdAsync(imported.Id, source, titleId, cancellationToken);
+                    return imported;
+                }
+            }
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var slug = SlugHelper.CreateSlug(title);
+        if (await dbContext.Games.AnyAsync(g => g.Slug == slug, cancellationToken))
+        {
+            slug = SlugHelper.CreateSlug($"{title}-{source.ToString().ToLowerInvariant()}-{titleId}");
+        }
+
+        var game = new Game
+        {
+            Id = Guid.NewGuid(),
+            Title = title,
+            SortTitle = title.ToLowerInvariant(),
+            Slug = slug,
+            MetadataStatus = MetadataStatus.Pending,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        game.ExternalIds.Add(new GameExternalId
+        {
+            GameId = game.Id,
+            Source = source,
+            ExternalId = titleId
+        });
+        dbContext.Games.Add(game);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return game;
+    }
+
     private static bool HasCover(Game game) => !string.IsNullOrEmpty(game.CoverUrl);
 
     private Task<bool> HasGenresAsync(Guid gameId, CancellationToken cancellationToken) =>

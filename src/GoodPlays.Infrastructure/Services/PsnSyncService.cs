@@ -15,7 +15,11 @@ public sealed class PsnSyncService(
     ITokenEncryptionService tokenEncryption,
     ILogger<PsnSyncService> logger) : IPsnSyncService
 {
-    public async Task<PsnSyncResultDto> SyncAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<PsnSyncResultDto> SyncAsync(
+        Guid userId,
+        CancellationToken cancellationToken,
+        Func<SyncProgressUpdate, CancellationToken, Task>? reportProgress = null,
+        string? onlyExternalId = null)
     {
         var connection = await dbContext.PlatformConnections
             .FirstOrDefaultAsync(
@@ -35,6 +39,7 @@ public sealed class PsnSyncService(
 
         var accessToken = tokenEncryption.Decrypt(connection.AccessTokenEnc);
         var refreshToken = tokenEncryption.Decrypt(connection.RefreshTokenEnc);
+        await ReportAsync(reportProgress, "Fetching from PlayStation", 0, 0, 0, 0, 0, 0, cancellationToken);
 
         if (connection.TokenExpiresAt is not null && connection.TokenExpiresAt <= DateTimeOffset.UtcNow.AddMinutes(1))
         {
@@ -60,6 +65,16 @@ public sealed class PsnSyncService(
                 accessToken,
                 connection.ExternalAccountId,
                 cancellationToken);
+        }
+
+        psnTitles = await OrderTitlesAsync(userId, psnTitles, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(onlyExternalId))
+        {
+            psnTitles = psnTitles.Where(title => title.TitleId == onlyExternalId).ToList();
+            if (psnTitles.Count == 0)
+            {
+                throw new InvalidOperationException("This game was not found in the connected PlayStation library.");
+            }
         }
 
         string? warning = null;
@@ -91,6 +106,17 @@ public sealed class PsnSyncService(
                     unmatched++;
                     break;
             }
+
+            await ReportAsync(
+                reportProgress,
+                "Updating PlayStation library",
+                added + updated + skipped + unmatched,
+                psnTitles.Count,
+                added,
+                updated,
+                skipped,
+                unmatched,
+                cancellationToken);
         }
 
         var syncedAt = DateTimeOffset.UtcNow;
@@ -142,6 +168,7 @@ public sealed class PsnSyncService(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        var previousHours = (decimal?)null;
         var entry = await dbContext.LibraryEntries
             .FirstOrDefaultAsync(
                 e => e.UserId == userId &&
@@ -176,8 +203,12 @@ public sealed class PsnSyncService(
             };
             dbContext.LibraryEntries.Add(entry);
             await dbContext.SaveChangesAsync(cancellationToken);
+            await ProfileActivityRules.RecordPlaytimeAsync(
+                dbContext, userId, game.Title, previousHours, entry.HoursPlayed, cancellationToken);
             return SyncOutcome.Added;
         }
+
+        previousHours = entry.HoursPlayed;
 
         var changed = false;
         entry.PlatformExternalId = psnTitle.TitleId;
@@ -219,10 +250,46 @@ public sealed class PsnSyncService(
         if (changed)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            await ProfileActivityRules.RecordPlaytimeAsync(
+                dbContext, userId, game.Title, previousHours, entry.HoursPlayed, cancellationToken);
             return SyncOutcome.Updated;
         }
 
         return SyncOutcome.Skipped;
+    }
+
+    private async Task<IReadOnlyList<PsnTitleStat>> OrderTitlesAsync(
+        Guid userId,
+        IReadOnlyList<PsnTitleStat> titles,
+        CancellationToken cancellationToken)
+    {
+        var known = await dbContext.LibraryEntries
+            .Where(e => e.UserId == userId && e.Source == LibraryEntrySource.PsnSync && e.PlatformExternalId != null)
+            .Select(e => new { e.PlatformExternalId, e.UpdatedAt })
+            .ToListAsync(cancellationToken);
+        var updatedAt = known.ToDictionary(e => e.PlatformExternalId!, e => e.UpdatedAt);
+        return SyncQueue.Order(titles, title => title.TitleId, updatedAt);
+    }
+
+    private static Task ReportAsync(
+        Func<SyncProgressUpdate, CancellationToken, Task>? reportProgress,
+        string phase,
+        int processed,
+        int total,
+        int added,
+        int updated,
+        int skipped,
+        int unmatched,
+        CancellationToken cancellationToken)
+    {
+        if (reportProgress is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return reportProgress(
+            new SyncProgressUpdate(phase, processed, total, added, updated, skipped, unmatched),
+            cancellationToken);
     }
 
     private enum SyncOutcome

@@ -56,6 +56,7 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             Status = request.Status ?? LibraryStatus.Owned,
             Rating = StarRating.Normalize(request.Rating),
             HoursPlayed = request.HoursPlayed,
+            HoursPlayedLocked = request.HoursPlayed is not null && !LibrarySourceLabels.IsPlatformSync(source),
             Source = source,
             Visibility = Visibility.Public,
             CreatedAt = now,
@@ -70,6 +71,9 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             .Where(g => g.Id == request.GameId)
             .Select(g => new { g.Title, g.CoverUrl })
             .FirstAsync(cancellationToken);
+
+        await ProfileActivityRules.RecordPlaytimeAsync(
+            dbContext, userId, game.Title, null, entry.HoursPlayed, cancellationToken);
 
         return new LibraryEntryDto(
             entry.Id,
@@ -108,13 +112,23 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
             entry.Rating = StarRating.Normalize(request.Rating);
         }
 
+        var previousHours = entry.HoursPlayed;
         if (request.HoursPlayed is not null)
         {
+            if (LibrarySourceLabels.IsPlatformSync(entry.Source))
+            {
+                throw new InvalidOperationException("Playtime can only be edited for manually added games.");
+            }
+
             entry.HoursPlayed = request.HoursPlayed;
+            entry.HoursPlayedLocked = true;
+            entry.HoursPlayedSource = HoursPlayedSource.Manual;
         }
 
         entry.UpdatedAt = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
+        await ProfileActivityRules.RecordPlaytimeAsync(
+            dbContext, userId, entry.Game.Title, previousHours, entry.HoursPlayed, cancellationToken);
 
         return new LibraryEntryDto(
             entry.Id,

@@ -3,8 +3,10 @@ using GoodPlays.Domain.Enums;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Infrastructure.Security;
 using GoodPlays.Infrastructure.Services;
+using GoodPlays.Infrastructure.Nintendo;
 using GoodPlays.Infrastructure.Psn;
 using GoodPlays.Infrastructure.Steam;
+using GoodPlays.Infrastructure.Xbox;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,6 +27,8 @@ public class PlatformConnectionServiceTests
                 context,
                 steamClient,
                 new FakePsnClient(),
+                new FakeXboxClient(),
+                new FakeNintendoClient(),
                 encryption,
                 NullLogger<PlatformConnectionService>.Instance);
 
@@ -66,6 +70,8 @@ public class PlatformConnectionServiceTests
                 context,
                 new FakeSteamClient(),
                 new FakePsnClient(),
+                new FakeXboxClient(),
+                new FakeNintendoClient(),
                 new DataProtectionTokenEncryptionService(new EphemeralDataProtectionProvider()),
                 NullLogger<PlatformConnectionService>.Instance);
 
@@ -105,6 +111,8 @@ public class PlatformConnectionServiceTests
                 context,
                 new FakeSteamClient(),
                 new FakePsnClient(),
+                new FakeXboxClient(),
+                new FakeNintendoClient(),
                 encryption,
                 NullLogger<PlatformConnectionService>.Instance);
 
@@ -179,5 +187,28 @@ public class PlatformConnectionServiceTests
 
         public Task<IReadOnlyList<SteamNewsItem>> GetNewsForAppAsync(uint appId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<SteamNewsItem>>([]);
+    }
+
+    private sealed class FakeXboxClient : IXboxClient
+    {
+        public XboxLoginRequest CreateLogin() => new("https://login.live.com/oauth20_authorize.srf");
+
+        public Task<XboxAccount> ConnectAsync(string callbackUrl, CancellationToken cancellationToken) =>
+            Task.FromResult(new XboxAccount("1", "Gamer", "refresh"));
+
+        public Task<XboxLibrary> GetLibraryAsync(string refreshToken, CancellationToken cancellationToken) =>
+            Task.FromResult(new XboxLibrary(refreshToken, "1", "Gamer", []));
+    }
+
+    private sealed class FakeNintendoClient : INintendoClient
+    {
+        public Task<string> ExchangeSessionTokenAsync(string sessionTokenCode, string codeVerifier, CancellationToken cancellationToken) =>
+            Task.FromResult("session");
+
+        public Task<NintendoAccount> GetAccountAsync(string sessionToken, CancellationToken cancellationToken) =>
+            Task.FromResult(new NintendoAccount("na", "Player"));
+
+        public Task<IReadOnlyList<NintendoPlayedTitle>> GetPlayHistoryAsync(string sessionToken, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<NintendoPlayedTitle>>([]);
     }
 }

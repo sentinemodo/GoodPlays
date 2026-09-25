@@ -18,7 +18,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
 
         var gamesQuery = dbContext.Games
             .AsNoTracking()
-            .Where(g => !g.IsHiddenFromCatalog)
+            .Playable()
             .Where(g => g.GameType == GameType.Base || g.GameType == GameType.StandaloneExpansion);
 
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -108,6 +108,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
                         Status = e.Status,
                         Rating = e.Rating,
                         HoursPlayed = e.HoursPlayed,
+                        HoursPlayedLocked = e.HoursPlayedLocked,
                         Source = e.Source,
                         LastPlayed = e.StartedAt,
                         IsLoved = e.IsLoved
@@ -194,7 +195,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
     {
         var visibleBaseGames = dbContext.Games
             .AsNoTracking()
-            .Where(g => !g.IsHiddenFromCatalog)
+            .Playable()
             .Where(g => g.GameType == GameType.Base || g.GameType == GameType.StandaloneExpansion);
 
         var totalGames = await visibleBaseGames.CountAsync(cancellationToken);
@@ -206,7 +207,8 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
         {
             var userLibrary = dbContext.LibraryEntries
                 .AsNoTracking()
-                .Where(e => e.UserId == userId && !e.Game.IsHiddenFromCatalog);
+                .Where(e => e.UserId == userId)
+                .WithPlayableGame();
 
             myCount = await userLibrary
                 .Select(e => e.GameId)
@@ -214,7 +216,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
                 .CountAsync(cancellationToken);
 
             myHours = await userLibrary
-                .Where(e => e.HoursPlayed != null)
+                .Where(e => e.HoursPlayed != null && !e.HoursPlayedLocked)
                 .SumAsync(e => e.HoursPlayed, cancellationToken);
 
             var sourceRows = await userLibrary
@@ -233,7 +235,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
 
         var categoryRows = await dbContext.GameGenres
             .AsNoTracking()
-            .Where(gg => !gg.Game.IsHiddenFromCatalog)
+            .Where(GameBlacklist.PlayableGenre)
             .Where(gg => gg.Game.GameType == GameType.Base || gg.Game.GameType == GameType.StandaloneExpansion)
             .GroupBy(gg => new { gg.Genre.Slug, gg.Genre.Name })
             .Select(g => new { g.Key.Slug, g.Key.Name, Count = g.Count() })
@@ -247,7 +249,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
 
         var platformRows = await dbContext.GamePlatforms
             .AsNoTracking()
-            .Where(gp => !gp.Game.IsHiddenFromCatalog)
+            .Where(GameBlacklist.PlayablePlatform)
             .Where(gp => gp.Game.GameType == GameType.Base || gp.Game.GameType == GameType.StandaloneExpansion)
             .GroupBy(gp => new { gp.Platform.Slug, gp.Platform.Name })
             .Select(g => new { g.Key.Slug, g.Key.Name, Count = g.Count() })
@@ -261,7 +263,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
 
         var tagRows = await dbContext.GameTags
             .AsNoTracking()
-            .Where(gt => !gt.Game.IsHiddenFromCatalog)
+            .Where(GameBlacklist.PlayableTag)
             .Where(gt => userId == null || gt.Tag.UserId == null || gt.Tag.UserId == userId)
             .GroupBy(gt => new { gt.Tag.Slug, gt.Tag.Name })
             .Select(g => new { g.Key.Slug, g.Key.Name, Count = g.Count() })
@@ -289,7 +291,8 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
         {
             var statusRows = await dbContext.LibraryEntries
                 .AsNoTracking()
-                .Where(e => e.UserId == userId && !e.Game.IsHiddenFromCatalog)
+                .Where(e => e.UserId == userId)
+                .WithPlayableGame()
                 .GroupBy(e => e.Status)
                 .Select(g => new { g.Key, Count = g.Select(e => e.GameId).Distinct().Count() })
                 .OrderByDescending(g => g.Count)
@@ -362,7 +365,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
 
         var dlcQuery = dbContext.Games
             .AsNoTracking()
-            .Where(g => !g.IsHiddenFromCatalog)
+            .Playable()
             .Where(g => g.ParentGameId != null && parentIds.Contains(g.ParentGameId.Value))
             .Where(g => g.GameType == GameType.Dlc || g.GameType == GameType.Expansion);
 
@@ -398,6 +401,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
                             Status = e.Status,
                             Rating = e.Rating,
                             HoursPlayed = e.HoursPlayed,
+                            HoursPlayedLocked = e.HoursPlayedLocked,
                             Source = e.Source,
                             LastPlayed = e.StartedAt,
                             IsLoved = e.IsLoved
@@ -438,7 +442,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
                 .OrderByDescending(g => g.LibraryEntry!.Rating ?? 0)
                 .ThenBy(g => g.Title),
             CatalogSortField.Hours when userId is not null => query
-                .OrderByDescending(g => g.LibraryEntry!.HoursPlayed ?? 0m)
+                .OrderByDescending(g => g.LibraryEntry!.HoursPlayedLocked ? 0m : g.LibraryEntry!.HoursPlayed ?? 0m)
                 .ThenBy(g => g.Title),
             CatalogSortField.TotalPlayers => query
                 .OrderByDescending(g => g.TotalPlayers)
@@ -582,6 +586,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
         public LibraryStatus Status { get; set; }
         public short? Rating { get; set; }
         public decimal? HoursPlayed { get; set; }
+        public bool HoursPlayedLocked { get; set; }
         public LibraryEntrySource Source { get; set; }
         public DateOnly? LastPlayed { get; set; }
         public bool IsLoved { get; set; }

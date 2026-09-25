@@ -45,10 +45,18 @@ public static class LibraryStatusRules
 
 public static class LibrarySourceLabels
 {
+    public static bool IsPlatformSync(LibraryEntrySource source) =>
+        source is LibraryEntrySource.SteamSync
+            or LibraryEntrySource.PsnSync
+            or LibraryEntrySource.XboxSync
+            or LibraryEntrySource.SwitchSync;
+
     public static string Format(LibraryEntrySource? source) => source switch
     {
         LibraryEntrySource.SteamSync => "Steam",
         LibraryEntrySource.PsnSync => "PlayStation",
+        LibraryEntrySource.XboxSync => "Xbox",
+        LibraryEntrySource.SwitchSync => "Nintendo Switch",
         LibraryEntrySource.Manual => "Manual",
         LibraryEntrySource.ImportText or LibraryEntrySource.ImportImage or LibraryEntrySource.ImportCsv => "Import",
         LibraryEntrySource.ResearchReco => "Recommendation",

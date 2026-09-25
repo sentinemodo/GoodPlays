@@ -2,12 +2,14 @@ import { SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react'
 import { AddGameSearch } from '../components/AddGameSearch'
 import { CatalogBrowsePage } from '../components/CatalogBrowsePage'
 import { LastSyncSummary } from '../components/LastSyncSummary'
+import { SyncAllButton } from '../components/SyncAllButton'
 
 const hasClerk = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
 
 function LibraryTools() {
   return (
     <div className="mb-6 flex flex-col gap-4">
+      <SyncAllButton />
       <LastSyncSummary />
       <AddGameSearch />
     </div>

@@ -13,6 +13,7 @@ type GameListViewProps = {
   error: Error | null
   showTagEditor?: boolean
   showMultiPlatform?: boolean
+  onToggleLoved?: (game: CatalogGame) => void
   onPageChange: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
 }
@@ -22,6 +23,7 @@ function renderGameRows(
   view: 'list' | 'grid',
   showTagEditor: boolean,
   showMultiPlatform: boolean,
+  onToggleLoved?: (game: CatalogGame) => void,
 ) {
   if (view === 'grid') {
     return (
@@ -33,6 +35,7 @@ function renderGameRows(
             view="grid"
             showTagEditor={showTagEditor}
             showMultiPlatform={showMultiPlatform}
+            onToggleLoved={onToggleLoved}
           />
         ))}
       </div>
@@ -43,7 +46,13 @@ function renderGameRows(
     <ul className="space-y-2">
       {games.map((game) => (
         <li key={game.id}>
-          <GameCard game={game} view="list" showTagEditor={showTagEditor} showMultiPlatform={showMultiPlatform} />
+          <GameCard
+            game={game}
+            view="list"
+            showTagEditor={showTagEditor}
+            showMultiPlatform={showMultiPlatform}
+            onToggleLoved={onToggleLoved}
+          />
           {game.dlc.map((dlc) => (
             <div key={dlc.id} className="mt-1">
               <GameCard
@@ -72,6 +81,7 @@ export function GameListView({
   error,
   showTagEditor = false,
   showMultiPlatform = false,
+  onToggleLoved,
   onPageChange,
   onPageSizeChange,
 }: GameListViewProps) {
@@ -92,12 +102,12 @@ export function GameListView({
           {groups.map((group) => (
             <section key={group.key}>
               <h3 className="mb-3 text-sm font-medium text-primary">{group.label}</h3>
-              {renderGameRows(group.items, view, showTagEditor, showMultiPlatform)}
+              {renderGameRows(group.items, view, showTagEditor, showMultiPlatform, onToggleLoved)}
             </section>
           ))}
         </div>
       ) : items.length > 0 ? (
-        renderGameRows(items, view, showTagEditor, showMultiPlatform)
+        renderGameRows(items, view, showTagEditor, showMultiPlatform, onToggleLoved)
       ) : (
         <p className="text-muted-foreground">No games match your filters.</p>
       )}

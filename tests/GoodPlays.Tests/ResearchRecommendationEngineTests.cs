@@ -121,6 +121,13 @@ public class ResearchRecommendationEngineTests
             string psnTitle,
             CancellationToken cancellationToken) =>
             Task.FromResult<Game?>(game);
+
+        public Task<Game> ResolveForExternalTitleAsync(
+            ExternalIdSource source,
+            string titleId,
+            string title,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeLlmClient(bool isConfigured) : ILlmClient

@@ -177,7 +177,7 @@ public sealed class GameDetailService(
     {
         var mostHours = await dbContext.LibraryEntries
             .AsNoTracking()
-            .Where(e => e.GameId == gameId && e.HoursPlayed != null)
+            .Where(e => e.GameId == gameId && e.HoursPlayed != null && !e.HoursPlayedLocked)
             .OrderByDescending(e => e.HoursPlayed)
             .Join(dbContext.UserProfiles, e => e.UserId, p => p.UserId, (e, p) => new
             {

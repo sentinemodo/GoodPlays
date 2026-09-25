@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router'
 import { AppLayout } from './components/AppLayout'
 import { appRoute } from './lib/routing'
+import { AdminLogsPage } from './pages/AdminLogsPage'
 import { CatalogPage } from './pages/CatalogPage'
 import { GameDetailPage } from './pages/GameDetailPage'
 import { HomePage } from './pages/HomePage'
@@ -27,6 +28,7 @@ function AppRoutes() {
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/admin" element={<AdminLogsPage />} />
           <Route path="/games/:slug" element={<GameDetailPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/sign-in/*" element={<SignInPage />} />

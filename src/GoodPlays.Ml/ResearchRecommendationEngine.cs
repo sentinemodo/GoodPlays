@@ -25,6 +25,7 @@ public sealed class ResearchRecommendationEngine(
         var libraryTitles = await dbContext.LibraryEntries
             .AsNoTracking()
             .Where(e => e.UserId == userId)
+            .WithPlayableGame()
             .OrderByDescending(e => e.UpdatedAt)
             .Select(e => e.Game.Title)
             .Take(40)
@@ -108,6 +109,7 @@ public sealed class ResearchRecommendationEngine(
         var candidates = await dbContext.Games
             .AsNoTracking()
             .Where(g => !ownedGameIds.Contains(g.Id))
+            .Playable()
             .Where(g => g.MetadataStatus == MetadataStatus.Complete)
             .OrderByDescending(g => g.UpdatedAt)
             .Take(5)
@@ -119,6 +121,7 @@ public sealed class ResearchRecommendationEngine(
             candidates = await dbContext.Games
                 .AsNoTracking()
                 .Where(g => !ownedGameIds.Contains(g.Id))
+                .Playable()
                 .OrderBy(g => g.SortTitle)
                 .Take(5)
                 .Select(g => g.Title)
@@ -145,7 +148,7 @@ public sealed class ResearchRecommendationEngine(
                          string.Equals(m.Title, suggestion.Title, StringComparison.OrdinalIgnoreCase))
                      ?? matches.FirstOrDefault();
 
-        if (match is null)
+        if (match is null || GameBlacklist.IsNonGameApplication(match.Title))
         {
             return null;
         }

@@ -44,7 +44,9 @@ public sealed record ProfileDto(
     IReadOnlyList<ProfileTrophyDto> Trophies,
     IReadOnlyList<ProfileTrophyGameDto> TrophyGames);
 
-public sealed record UpdateProfileRequest(string? Bio, string? AvatarUrl);
+public sealed record UpdateProfileRequest(string? Bio, string? AvatarUrl, string? Username = null);
+
+public sealed class UsernameTakenException(string message) : Exception(message);
 
 public interface IProfileService
 {
@@ -56,6 +58,8 @@ public interface IProfileService
         CancellationToken cancellationToken);
 
     Task<ProfileDto?> UpdateAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken);
+
+    Task<Guid?> FindUserIdByUsernameAsync(string username, CancellationToken cancellationToken);
 
     Task<bool> SetFeaturedTrophyAsync(Guid userId, Guid achievementId, bool featured, CancellationToken cancellationToken);
 }

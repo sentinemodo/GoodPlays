@@ -125,6 +125,20 @@ Persist sort preference per user (local storage or profile setting).
 
 Add a search/filter box on `/library` to find games by title within the user's collection (client-side filter for MVP-scale libraries; server-side query when libraries grow large).
 
+## LLM profile description
+
+**Priority:** Medium (profile)
+
+Generate a short profile bio from the player's library: platforms, most-played categories, top games by time, and recent sessions. The player can edit or discard the draft before it is saved.
+
+- Call the existing OpenAI-compatible client (`LLM__ApiKey`, same settings as research recommendations)
+- Prompt with aggregated stats only (titles, hours, genres) — no raw platform tokens
+- Return plain text, capped around 500 characters, matching the profile bio field
+- Button on `/profile`: "Draft bio with AI", then the existing save action persists it
+- If `LLM__ApiKey` is missing, hide the button and keep the manual bio editor
+
+**Acceptance:** A signed-in player with a library can generate a bio draft, edit it, and save it as their profile description.
+
 ## Recommend something similar
 
 **Priority:** Medium (discovery)

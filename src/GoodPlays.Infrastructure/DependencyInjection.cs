@@ -4,8 +4,10 @@ using GoodPlays.Infrastructure.OpenCritic;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Infrastructure.Security;
 using GoodPlays.Infrastructure.Services;
+using GoodPlays.Infrastructure.Nintendo;
 using GoodPlays.Infrastructure.Psn;
 using GoodPlays.Infrastructure.Steam;
+using GoodPlays.Infrastructure.Xbox;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -47,6 +49,12 @@ public static class DependencyInjection
         services.AddScoped<IPlatformConnectionService, PlatformConnectionService>();
         services.AddScoped<ISteamSyncService, SteamSyncService>();
         services.AddScoped<IPsnSyncService, PsnSyncService>();
+        services.AddScoped<IXboxSyncService, XboxSyncService>();
+        services.AddScoped<ISwitchSyncService, SwitchSyncService>();
+        services.AddScoped<IPlatformSyncRunService, PlatformSyncRunService>();
+        services.AddScoped<ILibraryEntrySyncService, LibraryEntrySyncService>();
+        services.AddScoped<IActivityLogService, ActivityLogService>();
+        services.AddSingleton<IClock, SystemClock>();
 
         services.AddDataProtection();
         services.AddSingleton<ITokenEncryptionService, DataProtectionTokenEncryptionService>();
@@ -68,6 +76,16 @@ public static class DependencyInjection
             {
                 AllowAutoRedirect = false
             });
+
+        services.AddHttpClient<IXboxClient, XboxClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddHttpClient<INintendoClient, NintendoClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", NintendoLogin.UserAgent);
+        });
 
         return services;
     }

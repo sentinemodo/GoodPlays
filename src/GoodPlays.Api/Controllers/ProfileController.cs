@@ -37,8 +37,19 @@ public class ProfileController(IProfileService profileService, ICurrentUserAcces
             return Unauthorized();
         }
 
-        var profile = await profileService.UpdateAsync(user.Id, request, cancellationToken);
-        return profile is null ? NotFound() : Ok(profile);
+        try
+        {
+            var profile = await profileService.UpdateAsync(user.Id, request, cancellationToken);
+            return profile is null ? NotFound() : Ok(profile);
+        }
+        catch (UsernameTakenException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("trophies/{achievementId:guid}/featured")]

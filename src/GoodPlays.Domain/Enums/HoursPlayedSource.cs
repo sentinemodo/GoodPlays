@@ -4,5 +4,6 @@ public enum HoursPlayedSource
 {
     Manual = 0,
     Steam = 1,
-    Psn = 2
+    Psn = 2,
+    Switch = 3
 }

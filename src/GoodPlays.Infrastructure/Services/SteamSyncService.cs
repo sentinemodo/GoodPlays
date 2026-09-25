@@ -15,7 +15,11 @@ public sealed class SteamSyncService(
     ITokenEncryptionService tokenEncryption,
     ILogger<SteamSyncService> logger) : ISteamSyncService
 {
-    public async Task<SteamSyncResultDto> SyncAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<SteamSyncResultDto> SyncAsync(
+        Guid userId,
+        CancellationToken cancellationToken,
+        Func<SyncProgressUpdate, CancellationToken, Task>? reportProgress = null,
+        string? onlyExternalId = null)
     {
         var connection = await dbContext.PlatformConnections
             .FirstOrDefaultAsync(
@@ -33,7 +37,17 @@ public sealed class SteamSyncService(
         }
 
         var apiKey = tokenEncryption.Decrypt(connection.AccessTokenEnc);
+        await ReportAsync(reportProgress, "Fetching from Steam", 0, 0, 0, 0, 0, 0, cancellationToken);
         var steamGames = await steamClient.GetOwnedGamesAsync(connection.ExternalAccountId, apiKey, cancellationToken);
+        steamGames = await OrderOwnedGamesAsync(userId, steamGames, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(onlyExternalId))
+        {
+            steamGames = steamGames.Where(game => game.AppId.ToString() == onlyExternalId).ToList();
+            if (steamGames.Count == 0)
+            {
+                throw new InvalidOperationException("This game was not found in the connected Steam library.");
+            }
+        }
 
         string? warning = null;
         if (steamGames.Count == 0)
@@ -69,6 +83,17 @@ public sealed class SteamSyncService(
                     unmatched++;
                     break;
             }
+
+            await ReportAsync(
+                reportProgress,
+                "Updating Steam library",
+                added + updated + skipped + unmatched,
+                steamGames.Count,
+                added,
+                updated,
+                skipped,
+                unmatched,
+                cancellationToken);
         }
 
         var syncedAt = DateTimeOffset.UtcNow;
@@ -104,6 +129,7 @@ public sealed class SteamSyncService(
         }
 
         var appIdStr = steamGame.AppId.ToString();
+        var previousHours = (decimal?)null;
         var entry = await dbContext.LibraryEntries
             .FirstOrDefaultAsync(
                 e => e.UserId == userId &&
@@ -138,9 +164,12 @@ public sealed class SteamSyncService(
             };
             dbContext.LibraryEntries.Add(entry);
             await dbContext.SaveChangesAsync(cancellationToken);
+            await ProfileActivityRules.RecordPlaytimeAsync(
+                dbContext, userId, game.Title, previousHours, entry.HoursPlayed, cancellationToken);
             return SyncOutcome.Added;
         }
 
+        previousHours = entry.HoursPlayed;
         var changed = false;
         entry.PlatformExternalId = appIdStr;
         entry.UpdatedAt = DateTimeOffset.UtcNow;
@@ -175,10 +204,46 @@ public sealed class SteamSyncService(
         if (changed)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            await ProfileActivityRules.RecordPlaytimeAsync(
+                dbContext, userId, game.Title, previousHours, entry.HoursPlayed, cancellationToken);
             return SyncOutcome.Updated;
         }
 
         return SyncOutcome.Skipped;
+    }
+
+    private async Task<IReadOnlyList<SteamOwnedGame>> OrderOwnedGamesAsync(
+        Guid userId,
+        IReadOnlyList<SteamOwnedGame> steamGames,
+        CancellationToken cancellationToken)
+    {
+        var known = await dbContext.LibraryEntries
+            .Where(e => e.UserId == userId && e.Source == LibraryEntrySource.SteamSync && e.PlatformExternalId != null)
+            .Select(e => new { e.PlatformExternalId, e.UpdatedAt })
+            .ToListAsync(cancellationToken);
+        var updatedAt = known.ToDictionary(e => e.PlatformExternalId!, e => e.UpdatedAt);
+        return SyncQueue.Order(steamGames, game => game.AppId.ToString(), updatedAt);
+    }
+
+    private static Task ReportAsync(
+        Func<SyncProgressUpdate, CancellationToken, Task>? reportProgress,
+        string phase,
+        int processed,
+        int total,
+        int added,
+        int updated,
+        int skipped,
+        int unmatched,
+        CancellationToken cancellationToken)
+    {
+        if (reportProgress is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return reportProgress(
+            new SyncProgressUpdate(phase, processed, total, added, updated, skipped, unmatched),
+            cancellationToken);
     }
 
     private enum SyncOutcome

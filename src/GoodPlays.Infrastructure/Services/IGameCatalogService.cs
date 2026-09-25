@@ -1,4 +1,5 @@
 using GoodPlays.Domain.Entities;
+using GoodPlays.Domain.Enums;
 using GoodPlays.Infrastructure.Metadata;
 
 namespace GoodPlays.Infrastructure.Services;
@@ -31,5 +32,11 @@ public interface IGameCatalogService
         Game game,
         string titleId,
         string psnTitle,
+        CancellationToken cancellationToken);
+
+    Task<Game> ResolveForExternalTitleAsync(
+        ExternalIdSource source,
+        string titleId,
+        string title,
         CancellationToken cancellationToken);
 }

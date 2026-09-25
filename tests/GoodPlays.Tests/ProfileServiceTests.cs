@@ -55,6 +55,28 @@ public class ProfileServiceTests
     }
 
     [Fact]
+    public async Task GetAsync_ExcludesManuallyEditedHoursFromRankings()
+    {
+        var (context, userId) = CreateContext();
+        var edited = AddGame(context, "Edited", "edited");
+        var counted = AddGame(context, "Counted", "counted");
+        var editedEntry = Entry(userId, edited.Id, 500);
+        editedEntry.HoursPlayedLocked = true;
+        context.LibraryEntries.AddRange(
+            editedEntry,
+            Entry(userId, counted.Id, 4, source: LibraryEntrySource.SteamSync));
+        await context.SaveChangesAsync();
+
+        var profile = await new ProfileService(context).GetAsync(userId, null, null, null, CancellationToken.None);
+
+        Assert.Equal("Counted", profile.MostLovedGame!.Title);
+        Assert.Contains(profile.TopGamesByTime, game => game.Title == "Counted");
+        Assert.DoesNotContain(profile.TopGamesByTime, game => game.Title == "Edited");
+        Assert.Contains(profile.Platforms, platform => platform.Label == "Steam" && platform.Hours == 4);
+        Assert.DoesNotContain(profile.Platforms, platform => platform.Hours == 500);
+    }
+
+    [Fact]
     public async Task GetAsync_FiltersTrophiesAndKeepsFeaturedAndRecent()
     {
         var (context, userId) = CreateContext();
@@ -101,12 +123,75 @@ public class ProfileServiceTests
     }
 
     [Fact]
+    public async Task GetAsync_OmitsStreamingAppsFromStats()
+    {
+        var (context, userId) = CreateContext();
+        var netflix = AddGame(context, "Netflix", "netflix");
+        var game = AddGame(context, "Hades", "hades");
+        context.LibraryEntries.AddRange(
+            Entry(userId, netflix.Id, 40, source: LibraryEntrySource.PsnSync),
+            Entry(userId, game.Id, 5, source: LibraryEntrySource.PsnSync));
+        await context.SaveChangesAsync();
+
+        var profile = await new ProfileService(context).GetAsync(userId, null, null, null, CancellationToken.None);
+
+        Assert.Equal("Hades", profile.MostLovedGame!.Title);
+        Assert.DoesNotContain(profile.Platforms, p => p.GameCount != 1);
+        Assert.Equal(5, profile.Platforms.Single().Hours);
+    }
+
+    [Fact]
     public void FromRarity_MapsPlatinumGoldSilver()
     {
         Assert.Equal(TrophyClass.Platinum, TrophyClassRules.FromRarity(4));
         Assert.Equal(TrophyClass.Gold, TrophyClassRules.FromRarity(12));
         Assert.Equal(TrophyClass.Silver, TrophyClassRules.FromRarity(40));
         Assert.Equal(TrophyClass.Bronze, TrophyClassRules.FromRarity(80));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ChangesUsernameWhenItIsUnique()
+    {
+        var (context, userId) = CreateContext();
+        await using (context)
+        {
+            var service = new ProfileService(context);
+            await service.GetAsync(userId, null, null, null, CancellationToken.None);
+
+            var updated = await service.UpdateAsync(
+                userId,
+                new UpdateProfileRequest(null, null, "NightOwl"),
+                CancellationToken.None);
+
+            Assert.Equal("nightowl", updated!.Username);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateAsync_RejectsUsernameTakenBySomeoneElse()
+    {
+        var (context, userId) = CreateContext();
+        var other = new User
+        {
+            Id = Guid.NewGuid(),
+            ClerkId = "other",
+            Email = "other@example.com",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Profile = new UserProfile { UserId = Guid.Empty, Username = "nightowl" }
+        };
+        other.Profile.UserId = other.Id;
+        context.Users.Add(other);
+        await context.SaveChangesAsync();
+        await using (context)
+        {
+            var service = new ProfileService(context);
+            await service.GetAsync(userId, null, null, null, CancellationToken.None);
+
+            var ex = await Assert.ThrowsAsync<UsernameTakenException>(() =>
+                service.UpdateAsync(userId, new UpdateProfileRequest(null, null, "NightOwl"), CancellationToken.None));
+
+            Assert.Equal("That nickname is already taken.", ex.Message);
+        }
     }
 
     private static (GoodPlaysDbContext Context, Guid UserId) CreateContext()

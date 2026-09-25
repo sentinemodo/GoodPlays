@@ -1,11 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useApiAuth } from '../hooks/useApiAuth'
 import { api } from '../lib/api'
 import { catalogHasMissingCover } from '../lib/missingCovers'
 import type { CatalogFilters, CatalogGroupBy, CatalogSortField } from '../lib/catalogTypes'
-import { showSortDirectionToggle, sortUsesDescendingDefault } from '../lib/catalogTypes'
+import { appendSortDirection, showSortDirectionToggle, sortUsesDescendingDefault } from '../lib/catalogTypes'
 import { CatalogSidebar } from './CatalogSidebar'
 import { GameListView } from './GameListView'
 import { GroupFilterPanel } from './GroupFilterPanel'
@@ -55,7 +55,7 @@ function filtersToParams(filters: CatalogFilters): URLSearchParams {
   if (filters.status) params.set('status', filters.status)
   if (filters.source) params.set('source', filters.source)
   if (filters.sort && filters.sort !== 'Title') params.set('sort', filters.sort)
-  if (filters.desc && showSortDirectionToggle(filters.sort ?? 'Title')) params.set('desc', 'true')
+  appendSortDirection(params, filters.sort, filters.desc)
   if (filters.page && filters.page > 1) params.set('page', String(filters.page))
   if (filters.pageSize && filters.pageSize !== 20) params.set('pageSize', String(filters.pageSize))
   if (filters.groupBy && filters.groupBy !== 'None') params.set('groupBy', filters.groupBy)
@@ -67,6 +67,7 @@ function filtersToParams(filters: CatalogFilters): URLSearchParams {
 
 export function CatalogBrowsePage({ basePath, title, subtitle, sidebarExtra, banner }: CatalogBrowsePageProps) {
   useApiAuth()
+  const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = useMemo(() => parseFilters(searchParams, basePath), [searchParams, basePath])
   const [view, setView] = useState<'list' | 'grid'>('list')
@@ -166,6 +167,7 @@ export function CatalogBrowsePage({ basePath, title, subtitle, sidebarExtra, ban
               <>
                 <option value="Rating">Rating</option>
                 <option value="Hours">Hours played</option>
+                <option value="LastPlayed">Most recently run</option>
               </>
             )}
           </select>
@@ -239,6 +241,16 @@ export function CatalogBrowsePage({ basePath, title, subtitle, sidebarExtra, ban
           error={error}
           showTagEditor={basePath === '/library'}
           showMultiPlatform={basePath === '/catalog'}
+          onToggleLoved={
+            basePath === '/library'
+              ? async (game) => {
+                  if (!game.libraryEntryId) return
+                  await api.setLovedGame(game.libraryEntryId, !game.isLoved)
+                  await queryClient.invalidateQueries({ queryKey: ['catalog'] })
+                  await queryClient.invalidateQueries({ queryKey: ['profile'] })
+                }
+              : undefined
+          }
           onPageChange={(page) => updateFilters({ page })}
           onPageSizeChange={(pageSize) => updateFilters({ pageSize, page: 1 })}
         />

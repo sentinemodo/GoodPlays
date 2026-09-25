@@ -68,6 +68,37 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.ToTable("achievements", (string)null);
                 });
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.ActivityLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("activity_logs", (string)null);
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.Game", b =>
                 {
                     b.Property<Guid>("Id")
@@ -470,6 +501,12 @@ namespace GoodPlays.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("hours_played_source");
 
+                    b.Property<bool>("IsLoved")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_loved");
+
                     b.Property<string>("PlatformExternalId")
                         .HasColumnType("text")
                         .HasColumnName("platform_external_id");
@@ -615,6 +652,73 @@ namespace GoodPlays.Infrastructure.Migrations
                     b.ToTable("platform_connections", (string)null);
                 });
 
+            modelBuilder.Entity("GoodPlays.Domain.Entities.PlatformSyncRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AddedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("added_count");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("Phase")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("phase");
+
+                    b.Property<int>("ProcessedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("processed_count");
+
+                    b.Property<int>("SkippedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("skipped_count");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<int>("TotalCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_count");
+
+                    b.Property<int>("UnmatchedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("unmatched_count");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UpdatedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("updated_count");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("Warning")
+                        .HasColumnType("text")
+                        .HasColumnName("warning");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("platform_sync_runs", (string)null);
+                });
+
             modelBuilder.Entity("GoodPlays.Domain.Entities.Shelf", b =>
                 {
                     b.Property<Guid>("Id")
@@ -747,6 +851,12 @@ namespace GoodPlays.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("achievement_id");
 
+                    b.Property<bool>("IsFeatured")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_featured");
+
                     b.Property<DateTimeOffset>("UnlockedAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("unlocked_at");
@@ -810,6 +920,16 @@ namespace GoodPlays.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Game");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.ActivityLog", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GoodPlays.Domain.Entities.Game", b =>
@@ -976,6 +1096,17 @@ namespace GoodPlays.Infrastructure.Migrations
                 {
                     b.HasOne("GoodPlays.Domain.Entities.User", "User")
                         .WithMany("PlatformConnections")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GoodPlays.Domain.Entities.PlatformSyncRun", b =>
+                {
+                    b.HasOne("GoodPlays.Domain.Entities.User", "User")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

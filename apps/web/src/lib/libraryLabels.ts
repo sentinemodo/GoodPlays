@@ -8,6 +8,10 @@ export function formatLibrarySource(source: string | null | undefined): string |
       return 'Steam'
     case 'PsnSync':
       return 'PlayStation'
+    case 'XboxSync':
+      return 'Xbox'
+    case 'SwitchSync':
+      return 'Nintendo Switch'
     case 'Manual':
       return 'Manual'
     case 'ImportText':

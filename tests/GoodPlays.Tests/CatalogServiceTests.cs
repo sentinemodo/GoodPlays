@@ -269,6 +269,48 @@ public class CatalogServiceTests
     }
 
     [Fact]
+    public async Task BrowseAsync_ExcludesStreamingAppsEvenWhenNotFlaggedHidden()
+    {
+        var options = new DbContextOptionsBuilder<GoodPlaysDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        var context = new GoodPlaysDbContext(options);
+        var userId = Guid.NewGuid();
+        var netflix = CreateGame("Netflix", "netflix");
+        var prime = CreateGame("Prime Video", "prime-video");
+        var game = CreateGame("Hades", "hades");
+        context.Games.AddRange(netflix, prime, game);
+        context.LibraryEntries.AddRange(
+            new LibraryEntry
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                GameId = netflix.Id,
+                Source = LibraryEntrySource.PsnSync,
+                Visibility = Visibility.Public,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            },
+            new LibraryEntry
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                GameId = game.Id,
+                Source = LibraryEntrySource.PsnSync,
+                Visibility = Visibility.Public,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            });
+        await context.SaveChangesAsync();
+
+        var service = new CatalogService(context);
+        var result = await service.BrowseAsync(userId, new CatalogQuery(InLibrary: true), CancellationToken.None);
+
+        Assert.Single(result.Items);
+        Assert.Equal("Hades", result.Items[0].Title);
+    }
+
+    [Fact]
     public async Task BrowseAsync_ReleaseDateSort_RespectsAscending()
     {
         var options = new DbContextOptionsBuilder<GoodPlaysDbContext>()

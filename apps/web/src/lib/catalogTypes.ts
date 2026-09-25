@@ -1,4 +1,4 @@
-export type CatalogSortField = 'Title' | 'ReleaseDate' | 'UpdatedAt' | 'Rating' | 'Hours' | 'TotalPlayers'
+export type CatalogSortField = 'Title' | 'ReleaseDate' | 'UpdatedAt' | 'Rating' | 'Hours' | 'TotalPlayers' | 'LastPlayed'
 export type CatalogGroupBy = 'None' | 'Genre' | 'Platform' | 'Status' | 'Tag' | 'ReleaseDate'
 
 export type CatalogGame = {
@@ -19,6 +19,7 @@ export type CatalogGame = {
   userLastPlayed: string | null
   userTags: string[]
   dlc: CatalogGame[]
+  isLoved?: boolean
 }
 
 export type CatalogGroup = {
@@ -101,6 +102,7 @@ const descendingDefaultSorts: CatalogSortField[] = [
   'Rating',
   'Hours',
   'TotalPlayers',
+  'LastPlayed',
 ]
 
 export function sortUsesDescendingDefault(sort: CatalogSortField): boolean {
@@ -108,7 +110,27 @@ export function sortUsesDescendingDefault(sort: CatalogSortField): boolean {
 }
 
 export function showSortDirectionToggle(sort: CatalogSortField): boolean {
-  return sort === 'Title'
+  return sort === 'Title' || sort === 'ReleaseDate'
+}
+
+export function appendSortDirection(
+  params: URLSearchParams,
+  sort: CatalogSortField | undefined,
+  desc: boolean | undefined,
+) {
+  const field = sort ?? 'Title'
+  if (!showSortDirectionToggle(field)) {
+    return
+  }
+
+  if (sortUsesDescendingDefault(field)) {
+    params.set('desc', desc === false ? 'false' : 'true')
+    return
+  }
+
+  if (desc) {
+    params.set('desc', 'true')
+  }
 }
 
 export function buildCatalogQuery(filters: CatalogFilters): string {
@@ -123,7 +145,7 @@ export function buildCatalogQuery(filters: CatalogFilters): string {
   if (filters.status) params.set('status', filters.status)
   if (filters.source) params.set('source', filters.source)
   if (filters.sort) params.set('sort', filters.sort)
-  if (filters.desc && showSortDirectionToggle(filters.sort ?? 'Title')) params.set('desc', 'true')
+  appendSortDirection(params, filters.sort, filters.desc)
   params.set('page', String(filters.page ?? 1))
   params.set('pageSize', String(filters.pageSize ?? 20))
   if (filters.groupBy && filters.groupBy !== 'None') params.set('groupBy', filters.groupBy)

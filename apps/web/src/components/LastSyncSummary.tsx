@@ -25,6 +25,8 @@ export function LastSyncSummary() {
 
   const steam = connectionsQuery.data?.find((connection) => connection.platform === 'Steam')
   const psn = connectionsQuery.data?.find((connection) => connection.platform === 'Psn')
+  const xbox = connectionsQuery.data?.find((connection) => connection.platform === 'Xbox')
+  const nintendo = connectionsQuery.data?.find((connection) => connection.platform === 'Switch')
 
   return (
     <div className="rounded-2xl border border-border bg-card/60 p-4">
@@ -39,10 +41,10 @@ export function LastSyncSummary() {
       </div>
       {connectionsQuery.isLoading && <p className="mt-3 text-sm text-muted-foreground">Loading sync status…</p>}
       {connectionsQuery.isError && (
-        <p className="mt-3 text-sm text-amber-300">Sign in to see when Steam and PlayStation last synced.</p>
+        <p className="mt-3 text-sm text-amber-300">Sign in to see when your platforms last synced.</p>
       )}
       {connectionsQuery.data && (
-        <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+        <dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl bg-secondary/50 px-3 py-2">
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Steam</dt>
             <dd className="mt-1 text-sm font-medium">{formatSync(steam?.lastSyncAt, Boolean(steam))}</dd>
@@ -50,6 +52,14 @@ export function LastSyncSummary() {
           <div className="rounded-xl bg-secondary/50 px-3 py-2">
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">PlayStation</dt>
             <dd className="mt-1 text-sm font-medium">{formatSync(psn?.lastSyncAt, Boolean(psn))}</dd>
+          </div>
+          <div className="rounded-xl bg-secondary/50 px-3 py-2">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Xbox</dt>
+            <dd className="mt-1 text-sm font-medium">{formatSync(xbox?.lastSyncAt, Boolean(xbox))}</dd>
+          </div>
+          <div className="rounded-xl bg-secondary/50 px-3 py-2">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Switch</dt>
+            <dd className="mt-1 text-sm font-medium">{formatSync(nintendo?.lastSyncAt, Boolean(nintendo))}</dd>
           </div>
         </dl>
       )}

@@ -36,7 +36,7 @@ public sealed class AchievementSyncService(
         var libraryGames = await dbContext.LibraryEntries
             .AsNoTracking()
             .Where(e => e.UserId == userId && e.Source == LibraryEntrySource.SteamSync)
-            .Select(e => new { e.GameId, e.PlatformExternalId })
+            .Select(e => new { e.GameId, e.PlatformExternalId, e.Game.Title })
             .ToListAsync(cancellationToken);
 
         foreach (var entry in libraryGames)
@@ -58,14 +58,16 @@ public sealed class AchievementSyncService(
 
                 var achievementMap = await dbContext.Achievements
                     .Where(a => a.GameId == entry.GameId)
-                    .ToDictionaryAsync(a => a.ExternalId, a => a.Id, cancellationToken);
+                    .ToDictionaryAsync(a => a.ExternalId, a => new { a.Id, a.Name }, cancellationToken);
 
                 foreach (var unlocked in result.Achievements.Where(a => a.Achieved))
                 {
-                    if (!achievementMap.TryGetValue(unlocked.ApiName, out var achievementId))
+                    if (!achievementMap.TryGetValue(unlocked.ApiName, out var achievement))
                     {
                         continue;
                     }
+
+                    var achievementId = achievement.Id;
 
                     var exists = await dbContext.UserAchievements.AnyAsync(
                         ua => ua.UserId == userId && ua.AchievementId == achievementId,
@@ -75,6 +77,8 @@ public sealed class AchievementSyncService(
                         continue;
                     }
 
+                    await ProfileActivityRules.RecordTrophyAsync(
+                        dbContext, userId, achievement.Name, entry.Title, cancellationToken);
                     dbContext.UserAchievements.Add(new UserAchievement
                     {
                         UserId = userId,

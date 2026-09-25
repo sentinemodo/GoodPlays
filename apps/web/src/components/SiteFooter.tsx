@@ -1,3 +1,5 @@
+import { Link } from 'react-router'
+
 export function SiteFooter() {
   return (
     <footer className="border-t border-border/80 bg-background/80 px-6 py-4">
@@ -11,7 +13,10 @@ export function SiteFooter() {
         >
           IGDB
         </a>
-        .
+        .{' '}
+        <Link to="/admin" className="text-foreground/80 underline decoration-border underline-offset-2 hover:text-foreground">
+          Admin
+        </Link>
       </p>
     </footer>
   )

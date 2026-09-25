@@ -2,8 +2,10 @@ using GoodPlays.Domain.Entities;
 using GoodPlays.Domain.Enums;
 using GoodPlays.Infrastructure.Persistence;
 using GoodPlays.Infrastructure.Security;
+using GoodPlays.Infrastructure.Nintendo;
 using GoodPlays.Infrastructure.Psn;
 using GoodPlays.Infrastructure.Steam;
+using GoodPlays.Infrastructure.Xbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -13,6 +15,8 @@ public sealed class PlatformConnectionService(
     GoodPlaysDbContext dbContext,
     ISteamClient steamClient,
     IPsnClient psnClient,
+    IXboxClient xboxClient,
+    INintendoClient nintendoClient,
     ITokenEncryptionService tokenEncryption,
     ILogger<PlatformConnectionService> logger) : IPlatformConnectionService
 {
@@ -178,6 +182,122 @@ public sealed class PlatformConnectionService(
         dbContext.PlatformConnections.Remove(connection);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Disconnected PSN account for user {UserId}", userId);
+        return true;
+    }
+
+    public XboxLoginRequest CreateXboxLogin() => xboxClient.CreateLogin();
+
+    public async Task<PlatformConnectionDto> ConnectXboxAsync(
+        Guid userId,
+        string callbackUrl,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(callbackUrl);
+        var account = await xboxClient.ConnectAsync(callbackUrl, cancellationToken);
+        return await UpsertAsync(
+            userId,
+            PlatformConnectionPlatform.Xbox,
+            account.Xuid,
+            account.Gamertag,
+            accessToken: null,
+            refreshToken: account.RefreshToken,
+            expiresAt: null,
+            cancellationToken);
+    }
+
+    public Task<bool> DisconnectXboxAsync(Guid userId, CancellationToken cancellationToken) =>
+        DisconnectAsync(userId, PlatformConnectionPlatform.Xbox, cancellationToken);
+
+    public NintendoLoginRequest CreateSwitchLogin() => NintendoLogin.Create();
+
+    public async Task<PlatformConnectionDto> ConnectSwitchAsync(
+        Guid userId,
+        string callbackUrl,
+        string? codeVerifier,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(callbackUrl);
+        var sessionToken = callbackUrl.Contains("session_token_code", StringComparison.Ordinal) ||
+                           callbackUrl.Contains("npf", StringComparison.OrdinalIgnoreCase)
+            ? await nintendoClient.ExchangeSessionTokenAsync(
+                NintendoLogin.ReadSessionTokenCode(callbackUrl),
+                codeVerifier ?? throw new ArgumentException("codeVerifier is required for a Nintendo login link.", nameof(codeVerifier)),
+                cancellationToken)
+            : NintendoLogin.ReadSessionTokenCode(callbackUrl);
+        var account = await nintendoClient.GetAccountAsync(sessionToken, cancellationToken);
+        return await UpsertAsync(
+            userId,
+            PlatformConnectionPlatform.Switch,
+            account.AccountId,
+            account.DisplayName ?? "Nintendo Account",
+            accessToken: sessionToken,
+            refreshToken: null,
+            expiresAt: null,
+            cancellationToken);
+    }
+
+    public Task<bool> DisconnectSwitchAsync(Guid userId, CancellationToken cancellationToken) =>
+        DisconnectAsync(userId, PlatformConnectionPlatform.Switch, cancellationToken);
+
+    private async Task<PlatformConnectionDto> UpsertAsync(
+        Guid userId,
+        PlatformConnectionPlatform platform,
+        string externalAccountId,
+        string? displayName,
+        string? accessToken,
+        string? refreshToken,
+        DateTimeOffset? expiresAt,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var existing = await dbContext.PlatformConnections
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.Platform == platform, cancellationToken);
+        if (existing is null)
+        {
+            existing = new PlatformConnection
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Platform = platform,
+                ExternalAccountId = externalAccountId,
+                CreatedAt = now
+            };
+            dbContext.PlatformConnections.Add(existing);
+        }
+
+        existing.ExternalAccountId = externalAccountId;
+        existing.DisplayName = displayName;
+        existing.AccessTokenEnc = accessToken is null ? null : tokenEncryption.Encrypt(accessToken);
+        existing.RefreshTokenEnc = refreshToken is null ? null : tokenEncryption.Encrypt(refreshToken);
+        existing.TokenExpiresAt = expiresAt;
+        existing.SyncEnabled = true;
+        existing.UpdatedAt = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Connected {Platform} account {AccountId} for user {UserId}", platform, externalAccountId, userId);
+        return new PlatformConnectionDto(
+            existing.Platform,
+            existing.ExternalAccountId,
+            existing.DisplayName,
+            existing.LastSyncAt,
+            existing.SyncEnabled,
+            existing.CreatedAt);
+    }
+
+    private async Task<bool> DisconnectAsync(
+        Guid userId,
+        PlatformConnectionPlatform platform,
+        CancellationToken cancellationToken)
+    {
+        var connection = await dbContext.PlatformConnections
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.Platform == platform, cancellationToken);
+        if (connection is null)
+        {
+            return false;
+        }
+
+        dbContext.PlatformConnections.Remove(connection);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Disconnected {Platform} account for user {UserId}", platform, userId);
         return true;
     }
 }

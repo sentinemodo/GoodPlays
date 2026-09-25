@@ -22,6 +22,7 @@ public sealed class ProfileService(GoodPlaysDbContext dbContext) : IProfileServi
         var entries = await dbContext.LibraryEntries
             .AsNoTracking()
             .Where(e => e.UserId == userId)
+            .WithPlayableGame()
             .Select(e => new LibraryRow(
                 e.GameId,
                 e.Game.Title,
@@ -31,11 +32,13 @@ public sealed class ProfileService(GoodPlaysDbContext dbContext) : IProfileServi
                 e.StartedAt,
                 e.Source,
                 e.IsLoved,
+                e.HoursPlayedLocked,
                 e.Game.GameGenres.Select(gg => new GenreRow(gg.Genre.Slug, gg.Genre.Name)).ToList()))
             .ToListAsync(cancellationToken);
 
         var loved = entries.FirstOrDefault(e => e.IsLoved);
-        var mostHours = entries
+        var ranked = entries.Where(e => !e.HoursPlayedLocked).ToList();
+        var mostHours = ranked
             .OrderByDescending(e => e.HoursPlayed ?? 0m)
             .ThenBy(e => e.Title)
             .FirstOrDefault();
@@ -47,7 +50,7 @@ public sealed class ProfileService(GoodPlaysDbContext dbContext) : IProfileServi
                 g.Key.ToString(),
                 LibrarySourceLabels.Format(g.Key),
                 g.Count(),
-                g.Sum(e => e.HoursPlayed ?? 0m)))
+                g.Where(e => !e.HoursPlayedLocked).Sum(e => e.HoursPlayed ?? 0m)))
             .OrderByDescending(s => s.Hours)
             .ThenBy(s => s.Label)
             .ToList();
@@ -67,13 +70,13 @@ public sealed class ProfileService(GoodPlaysDbContext dbContext) : IProfileServi
                     g.Key,
                     g.First().Name,
                     matching.Count,
-                    matching.Sum(e => e.HoursPlayed ?? 0m));
+                    matching.Where(e => !e.HoursPlayedLocked).Sum(e => e.HoursPlayed ?? 0m));
             })
             .OrderByDescending(s => s.Hours)
             .ThenBy(s => s.Label)
             .ToList();
 
-        var topGames = entries
+        var topGames = ranked
             .OrderByDescending(e => e.HoursPlayed ?? 0m)
             .ThenBy(e => e.Title)
             .Take(5)
@@ -158,6 +161,15 @@ public sealed class ProfileService(GoodPlaysDbContext dbContext) : IProfileServi
             profile.AvatarUrl = avatar.Length == 0 ? null : avatar;
         }
 
+        if (request.Username is not null)
+        {
+            var nextUsername = request.Username.Trim().ToLowerInvariant();
+            if (!string.Equals(profile.Username, nextUsername, StringComparison.Ordinal))
+            {
+                profile.Username = await NormalizeUsernameAsync(request.Username, userId, cancellationToken);
+            }
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
         return await GetAsync(userId, null, null, null, cancellationToken);
     }
@@ -188,6 +200,34 @@ public sealed class ProfileService(GoodPlaysDbContext dbContext) : IProfileServi
         target.IsFeatured = featured;
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<Guid?> FindUserIdByUsernameAsync(string username, CancellationToken cancellationToken)
+    {
+        var normalized = username.Trim().ToLowerInvariant();
+        return await dbContext.UserProfiles
+            .Where(profile => profile.Username == normalized)
+            .Select(profile => (Guid?)profile.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<string> NormalizeUsernameAsync(string username, Guid userId, CancellationToken cancellationToken)
+    {
+        var normalized = username.Trim().ToLowerInvariant();
+        if (normalized.Length is < 3 or > 24 || !normalized.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-'))
+        {
+            throw new ArgumentException("Nickname must be 3–24 characters and use only letters, numbers, hyphens, or underscores.");
+        }
+
+        var taken = await dbContext.UserProfiles.AnyAsync(
+            profile => profile.Username == normalized && profile.UserId != userId,
+            cancellationToken);
+        if (taken)
+        {
+            throw new UsernameTakenException("That nickname is already taken.");
+        }
+
+        return normalized;
     }
 
     private async Task<UserProfile> EnsureProfileAsync(User user, CancellationToken cancellationToken)
@@ -256,6 +296,7 @@ public sealed class ProfileService(GoodPlaysDbContext dbContext) : IProfileServi
         DateOnly? LastPlayed,
         LibraryEntrySource Source,
         bool IsLoved,
+        bool HoursPlayedLocked,
         List<GenreRow> Genres);
 
     private sealed record TrophyRow(

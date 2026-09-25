@@ -39,7 +39,7 @@ public sealed class PsnClient(HttpClient httpClient, IOptions<PsnOptions> option
     {
         var url = $"{ProfileBaseUrl}/{Uri.EscapeDataString(accountId)}/profiles";
         using var request = CreateAuthorizedRequest(HttpMethod.Get, url, accessToken);
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        using var response = await SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         EnsureSuccessOrThrow(response, body);
 
@@ -66,7 +66,7 @@ public sealed class PsnClient(HttpClient httpClient, IOptions<PsnOptions> option
             var url =
                 $"{GamesBaseUrl}/{Uri.EscapeDataString(accountId)}/titles?limit={limit}&offset={offset}";
             using var request = CreateAuthorizedRequest(HttpMethod.Get, url, accessToken);
-            using var response = await httpClient.SendAsync(request, cancellationToken);
+            using var response = await SendAsync(request, cancellationToken);
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             EnsureSuccessOrThrow(response, body);
 
@@ -126,7 +126,7 @@ public sealed class PsnClient(HttpClient httpClient, IOptions<PsnOptions> option
             "User-Agent",
             "com.sony.snei.np.android.sso.share.oauth.versa.USER_AGENT");
 
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        using var response = await SendAsync(request, cancellationToken);
         if (!IsRedirectStatusCode(response.StatusCode))
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -185,7 +185,7 @@ public sealed class PsnClient(HttpClient httpClient, IOptions<PsnOptions> option
                 ["token_format"] = "jwt"
             });
 
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        using var response = await SendAsync(request, cancellationToken);
         return await ParseTokenResponseAsync(response, cancellationToken);
     }
 
@@ -202,7 +202,7 @@ public sealed class PsnClient(HttpClient httpClient, IOptions<PsnOptions> option
                 ["scope"] = _options.Scope
             });
 
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        using var response = await SendAsync(request, cancellationToken);
         return await ParseTokenResponseAsync(response, cancellationToken);
     }
 
@@ -238,6 +238,24 @@ public sealed class PsnClient(HttpClient httpClient, IOptions<PsnOptions> option
             payload.ExpiresIn,
             payload.RefreshTokenExpiresIn,
             payload.IdToken);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await httpClient.SendAsync(request, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new PsnApiException(
+                PsnApiErrorCode.ServerError,
+                $"PSN API request failed: {ex.Message}");
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new PsnApiException(PsnApiErrorCode.ServerError, "PSN API request timed out.");
+        }
     }
 
     private static HttpRequestMessage CreateAuthorizedRequest(HttpMethod method, string url, string accessToken)

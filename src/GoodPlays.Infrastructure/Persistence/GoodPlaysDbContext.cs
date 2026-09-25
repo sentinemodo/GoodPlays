@@ -16,6 +16,8 @@ public class GoodPlaysDbContext(DbContextOptions<GoodPlaysDbContext> options) : 
     public DbSet<LibraryEntry> LibraryEntries => Set<LibraryEntry>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
+    public DbSet<PlatformSyncRun> PlatformSyncRuns => Set<PlatformSyncRun>();
+    public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<GameRatingCache> GameRatingCaches => Set<GameRatingCache>();
     public DbSet<GameNewsItem> GameNewsItems => Set<GameNewsItem>();
@@ -171,6 +173,45 @@ public class GoodPlaysDbContext(DbContextOptions<GoodPlaysDbContext> options) : 
             entity.Property(e => e.StatsJson).HasColumnName("stats_json").HasColumnType("jsonb");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+        });
+
+        modelBuilder.Entity<PlatformSyncRun>(entity =>
+        {
+            entity.ToTable("platform_sync_runs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Status).HasColumnName("status").HasConversion<string>();
+            entity.Property(e => e.Phase).HasColumnName("phase");
+            entity.Property(e => e.ProcessedCount).HasColumnName("processed_count");
+            entity.Property(e => e.TotalCount).HasColumnName("total_count");
+            entity.Property(e => e.AddedCount).HasColumnName("added_count");
+            entity.Property(e => e.UpdatedCount).HasColumnName("updated_count");
+            entity.Property(e => e.SkippedCount).HasColumnName("skipped_count");
+            entity.Property(e => e.UnmatchedCount).HasColumnName("unmatched_count");
+            entity.Property(e => e.Warning).HasColumnName("warning");
+            entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ActivityLog>(entity =>
+        {
+            entity.ToTable("activity_logs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Category).HasColumnName("category");
+            entity.Property(e => e.Message).HasColumnName("message");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<PlatformConnection>(entity =>

@@ -7,5 +7,7 @@ public enum ExternalIdSource
     Steam = 2,
     Gog = 3,
     Opencritic = 4,
-    Psn = 5
+    Psn = 5,
+    Xbox = 6,
+    Switch = 7
 }

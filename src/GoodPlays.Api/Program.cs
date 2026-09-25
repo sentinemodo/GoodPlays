@@ -112,6 +112,9 @@ builder.Services.AddTransient<StubRecurringJobs>();
 builder.Services.AddTransient<ImportParseTextJob>();
 builder.Services.AddTransient<SteamSyncJob>();
 builder.Services.AddTransient<PsnSyncJob>();
+builder.Services.AddTransient<XboxSyncJob>();
+builder.Services.AddTransient<SwitchSyncJob>();
+builder.Services.AddTransient<PlatformSyncRunJob>();
 builder.Services.AddTransient<GameEnrichmentJobs>();
 builder.Services.AddTransient<AchievementSyncJob>();
 builder.Services.AddTransient<CoverRefreshJob>();
@@ -121,6 +124,9 @@ if (redisMultiplexer is not null)
     builder.Services.AddSingleton<IImportJobScheduler, HangfireImportJobScheduler>();
     builder.Services.AddSingleton<ISteamSyncJobScheduler, HangfireSteamSyncJobScheduler>();
     builder.Services.AddSingleton<IPsnSyncJobScheduler, HangfirePsnSyncJobScheduler>();
+    builder.Services.AddSingleton<IXboxSyncJobScheduler, HangfireXboxSyncJobScheduler>();
+    builder.Services.AddSingleton<ISwitchSyncJobScheduler, HangfireSwitchSyncJobScheduler>();
+    builder.Services.AddSingleton<IPlatformSyncRunScheduler, HangfirePlatformSyncRunScheduler>();
     builder.Services.AddSingleton<ICoverRefreshScheduler, HangfireCoverRefreshScheduler>();
 }
 else
@@ -128,6 +134,9 @@ else
     builder.Services.AddSingleton<IImportJobScheduler, InlineImportJobScheduler>();
     builder.Services.AddScoped<ISteamSyncJobScheduler, InlineSteamSyncJobScheduler>();
     builder.Services.AddScoped<IPsnSyncJobScheduler, InlinePsnSyncJobScheduler>();
+    builder.Services.AddScoped<IXboxSyncJobScheduler, InlineXboxSyncJobScheduler>();
+    builder.Services.AddScoped<ISwitchSyncJobScheduler, InlineSwitchSyncJobScheduler>();
+    builder.Services.AddSingleton<IPlatformSyncRunScheduler, InlinePlatformSyncRunScheduler>();
     builder.Services.AddSingleton<ICoverRefreshScheduler, InlineCoverRefreshScheduler>();
 }
 

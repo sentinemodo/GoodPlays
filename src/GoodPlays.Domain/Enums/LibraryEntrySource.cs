@@ -8,5 +8,7 @@ public enum LibraryEntrySource
     ImportCsv = 3,
     ResearchReco = 4,
     SteamSync = 5,
-    PsnSync = 6
+    PsnSync = 6,
+    XboxSync = 7,
+    SwitchSync = 8
 }

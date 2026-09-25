@@ -8,6 +8,7 @@ namespace GoodPlays.Api.Services;
 public sealed class CurrentUserAccessor(
     IHttpContextAccessor httpContextAccessor,
     IUserService userService,
+    IActivityLogService activityLogService,
     IConfiguration configuration,
     IWebHostEnvironment environment) : ICurrentUserAccessor
 {
@@ -36,7 +37,9 @@ public sealed class CurrentUserAccessor(
             var displayName = httpContext.User.FindFirstValue("name")
                 ?? httpContext.User.FindFirstValue(ClaimTypes.Name);
 
-            return await userService.EnsureUserAsync(clerkId, email, displayName, cancellationToken);
+            var user = await userService.EnsureUserAsync(clerkId, email, displayName, cancellationToken);
+            await activityLogService.RecordLoginAsync(user.Id, email, succeeded: true, cancellationToken);
+            return user;
         }
 
         if (!IsAuthEnabled && environment.IsDevelopment())

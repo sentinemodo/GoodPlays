@@ -135,5 +135,12 @@ public class ImportServiceTests
             string psnTitle,
             CancellationToken cancellationToken) =>
             Task.FromResult<Game?>(game);
+
+        public Task<Game> ResolveForExternalTitleAsync(
+            ExternalIdSource source,
+            string titleId,
+            string title,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }
