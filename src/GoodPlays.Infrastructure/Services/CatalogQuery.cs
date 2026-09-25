@@ -9,7 +9,8 @@ public enum CatalogSortField
     UpdatedAt,
     Rating,
     Hours,
-    TotalPlayers
+    TotalPlayers,
+    LastPlayed
 }
 
 public enum CatalogGroupBy
@@ -56,7 +57,8 @@ public sealed record CatalogGameDto(
     LibraryEntrySource? LibrarySource,
     DateOnly? UserLastPlayed,
     IReadOnlyList<string> UserTags,
-    IReadOnlyList<CatalogGameDto> Dlc);
+    IReadOnlyList<CatalogGameDto> Dlc,
+    bool IsLoved = false);
 
 public sealed record CatalogGroupDto(
     string Key,

@@ -86,4 +86,22 @@ public class LibraryController(
 
         return NoContent();
     }
+
+    [HttpPut("{entryId:guid}/loved")]
+    public async Task<IActionResult> SetLoved(
+        Guid entryId,
+        [FromBody] SetLovedRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await currentUserAccessor.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var updated = await libraryService.SetLovedAsync(user.Id, entryId, request.Loved, cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
+    public sealed record SetLovedRequest(bool Loved);
 }

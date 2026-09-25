@@ -109,7 +109,8 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
                         Rating = e.Rating,
                         HoursPlayed = e.HoursPlayed,
                         Source = e.Source,
-                        LastPlayed = e.StartedAt
+                        LastPlayed = e.StartedAt,
+                        IsLoved = e.IsLoved
                     })
                     .FirstOrDefault()
         });
@@ -398,7 +399,8 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
                             Rating = e.Rating,
                             HoursPlayed = e.HoursPlayed,
                             Source = e.Source,
-                            LastPlayed = e.StartedAt
+                            LastPlayed = e.StartedAt,
+                            IsLoved = e.IsLoved
                         })
                         .FirstOrDefault()
             })
@@ -422,8 +424,12 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
     {
         return catalogQuery.Sort switch
         {
-            CatalogSortField.ReleaseDate => query
-                .OrderByDescending(g => g.ReleaseDate)
+            CatalogSortField.ReleaseDate => catalogQuery.Descending
+                ? query.OrderByDescending(g => g.ReleaseDate).ThenBy(g => g.Title)
+                : query.OrderBy(g => g.ReleaseDate).ThenBy(g => g.Title),
+            CatalogSortField.LastPlayed when userId is not null => query
+                .OrderBy(g => g.LibraryEntry!.LastPlayed == null)
+                .ThenByDescending(g => g.LibraryEntry!.LastPlayed)
                 .ThenBy(g => g.Title),
             CatalogSortField.UpdatedAt => query
                 .OrderByDescending(g => g.UpdatedAt)
@@ -544,7 +550,8 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
             p.LibraryEntry?.Source,
             p.LibraryEntry?.LastPlayed,
             p.UserTags,
-            dlc);
+            dlc,
+            p.LibraryEntry?.IsLoved ?? false);
 
     private static string FormatLibrarySource(LibraryEntrySource source) =>
         LibrarySourceLabels.Format(source);
@@ -577,6 +584,7 @@ public sealed class CatalogService(GoodPlaysDbContext dbContext) : ICatalogServi
         public decimal? HoursPlayed { get; set; }
         public LibraryEntrySource Source { get; set; }
         public DateOnly? LastPlayed { get; set; }
+        public bool IsLoved { get; set; }
     }
 
     private sealed record GroupBucket(string Key, string Label, IReadOnlyList<CatalogProjection> Items);

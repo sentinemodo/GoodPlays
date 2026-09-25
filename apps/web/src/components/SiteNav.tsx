@@ -1,5 +1,5 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react'
-import { Compass, Gamepad2, Globe2, Library, Menu, Search, UserRound, X } from 'lucide-react'
+import { Compass, Download, Gamepad2, Globe2, Library, Menu, Search, UserRound, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router'
 import { appRoute } from '../lib/routing'
@@ -9,6 +9,7 @@ const hasClerk = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
 const links = [
   { href: '/', label: 'Discover', icon: Compass },
   { href: '/library', label: 'My Library', icon: Library },
+  { href: '/import', label: 'Import', icon: Download },
   { href: '/catalog', label: 'Global', icon: Globe2 },
   { href: '/profile', label: 'Profile', icon: UserRound },
 ]

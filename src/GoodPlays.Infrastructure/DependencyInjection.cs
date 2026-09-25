@@ -33,11 +33,13 @@ public static class DependencyInjection
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<IGameDetailService, GameDetailService>();
         services.AddScoped<IGameEnrichmentService, GameEnrichmentService>();
+        services.AddScoped<ICoverRefreshService, CoverRefreshService>();
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<IAchievementSyncService, AchievementSyncService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ILibraryService, LibraryService>();
+        services.AddScoped<IProfileService, ProfileService>();
 
         services.Configure<OpenCriticOptions>(configuration.GetSection(OpenCriticOptions.SectionName));
         services.AddHttpClient<IOpenCriticClient, OpenCriticClient>();

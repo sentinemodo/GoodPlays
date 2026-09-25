@@ -33,8 +33,8 @@ export function LastSyncSummary() {
           <RefreshCw className="size-4 text-cyan" />
           Last synced
         </div>
-        <Link to="/profile" className="text-sm font-medium text-primary hover:underline">
-          Sync on profile
+        <Link to="/import" className="text-sm font-medium text-primary hover:underline">
+          Import & sync
         </Link>
       </div>
       {connectionsQuery.isLoading && <p className="mt-3 text-sm text-muted-foreground">Loading sync status…</p>}

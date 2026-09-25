@@ -12,6 +12,7 @@ public class LibraryEntry
     public decimal? HoursPlayed { get; set; }
     public HoursPlayedSource HoursPlayedSource { get; set; } = HoursPlayedSource.Manual;
     public bool HoursPlayedLocked { get; set; }
+    public bool IsLoved { get; set; }
     public DateOnly? StartedAt { get; set; }
     public DateOnly? CompletedAt { get; set; }
     public LibraryEntrySource Source { get; set; } = LibraryEntrySource.Manual;

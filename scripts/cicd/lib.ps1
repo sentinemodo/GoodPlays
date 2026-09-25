@@ -6,7 +6,7 @@ $script:ApiPort = 5280
 $script:WebPort = 5180
 $script:ApiHealthUrl = 'http://localhost:5280/health'
 $script:WebUrl = 'http://localhost:5180/'
-$script:RailwayHealthUrl = 'https://goodplays-production.up.railway.app/health'
+$script:PublicApiHealthUrl = 'https://goodplays.duckdns.org/health'
 $script:PagesUrl = 'https://sentinemodo.github.io/GoodPlays/'
 $script:ResultsDir = Join-Path $script:RepoRoot 'TestResults'
 

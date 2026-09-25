@@ -41,4 +41,6 @@ public interface ILibraryService
         CancellationToken cancellationToken);
 
     Task<bool> DeleteAsync(Guid userId, Guid entryId, CancellationToken cancellationToken);
+
+    Task<bool> SetLovedAsync(Guid userId, Guid entryId, bool loved, CancellationToken cancellationToken);
 }

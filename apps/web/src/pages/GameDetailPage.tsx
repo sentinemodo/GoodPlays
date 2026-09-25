@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { GameTagEditor } from '../components/GameTagEditor'
 import { StarRatingInput } from '../components/StarRating'
@@ -30,10 +30,28 @@ function GameDetailContent() {
   const [commentBody, setCommentBody] = useState('')
   const [commentRating, setCommentRating] = useState<number | ''>('')
 
+  const coverPolls = useRef(0)
+  useEffect(() => {
+    coverPolls.current = 0
+  }, [slug])
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['game', slug],
     queryFn: () => api.getGame(slug),
     enabled: Boolean(slug),
+    refetchInterval: (query) => {
+      const game = query.state.data
+      const missing = Boolean(game && (!game.coverUrl || game.dlc.some((dlc) => !dlc.coverUrl)))
+      if (!missing) {
+        coverPolls.current = 0
+        return false
+      }
+      if (coverPolls.current >= 8) {
+        return false
+      }
+      coverPolls.current += 1
+      return 4000
+    },
   })
 
   const updateMutation = useMutation({

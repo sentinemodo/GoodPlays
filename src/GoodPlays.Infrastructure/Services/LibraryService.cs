@@ -142,4 +142,30 @@ public sealed class LibraryService(GoodPlaysDbContext dbContext) : ILibraryServi
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    public async Task<bool> SetLovedAsync(Guid userId, Guid entryId, bool loved, CancellationToken cancellationToken)
+    {
+        var entry = await dbContext.LibraryEntries
+            .FirstOrDefaultAsync(e => e.Id == entryId && e.UserId == userId, cancellationToken);
+        if (entry is null)
+        {
+            return false;
+        }
+
+        if (loved)
+        {
+            var others = await dbContext.LibraryEntries
+                .Where(e => e.UserId == userId && e.IsLoved && e.Id != entryId)
+                .ToListAsync(cancellationToken);
+            foreach (var other in others)
+            {
+                other.IsLoved = false;
+            }
+        }
+
+        entry.IsLoved = loved;
+        entry.UpdatedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }

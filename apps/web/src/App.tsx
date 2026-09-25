@@ -6,6 +6,7 @@ import { appRoute } from './lib/routing'
 import { CatalogPage } from './pages/CatalogPage'
 import { GameDetailPage } from './pages/GameDetailPage'
 import { HomePage } from './pages/HomePage'
+import { ImportPage } from './pages/ImportPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -24,6 +25,7 @@ function AppRoutes() {
           <Route path="/" element={<HomePage />} />
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/library" element={<LibraryPage />} />
+          <Route path="/import" element={<ImportPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/games/:slug" element={<GameDetailPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />

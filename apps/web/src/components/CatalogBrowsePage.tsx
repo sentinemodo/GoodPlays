@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useApiAuth } from '../hooks/useApiAuth'
 import { api } from '../lib/api'
+import { catalogHasMissingCover } from '../lib/missingCovers'
 import type { CatalogFilters, CatalogGroupBy, CatalogSortField } from '../lib/catalogTypes'
 import { showSortDirectionToggle, sortUsesDescendingDefault } from '../lib/catalogTypes'
 import { CatalogSidebar } from './CatalogSidebar'
@@ -76,9 +77,25 @@ export function CatalogBrowsePage({ basePath, title, subtitle, sidebarExtra, ban
     queryFn: api.getCatalogFacets,
   })
 
+  const coverPolls = useRef(0)
+  useEffect(() => {
+    coverPolls.current = 0
+  }, [searchParams])
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['catalog', filters],
     queryFn: () => api.browseCatalog(filters),
+    refetchInterval: (query) => {
+      if (!catalogHasMissingCover(query.state.data)) {
+        coverPolls.current = 0
+        return false
+      }
+      if (coverPolls.current >= 8) {
+        return false
+      }
+      coverPolls.current += 1
+      return 4000
+    },
   })
 
   const updateFilters = (patch: Partial<CatalogFilters>) => {

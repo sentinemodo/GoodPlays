@@ -9,7 +9,8 @@ namespace GoodPlays.Api.Controllers;
 public class GamesController(
     IGameCatalogService gameCatalogService,
     IGameDetailService gameDetailService,
-    ICurrentUserAccessor currentUserAccessor) : ControllerBase
+    ICurrentUserAccessor currentUserAccessor,
+    ICoverRefreshScheduler coverRefreshScheduler) : ControllerBase
 {
     [HttpGet("{slug}")]
     public async Task<IActionResult> GetBySlug(string slug, CancellationToken cancellationToken)
@@ -21,6 +22,7 @@ public class GamesController(
             return NotFound();
         }
 
+        coverRefreshScheduler.Schedule(MissingCoverIds.FromDetail(detail));
         return Ok(detail);
     }
 

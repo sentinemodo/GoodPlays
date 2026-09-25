@@ -4,7 +4,8 @@ description: >-
   Operational CI/CD for GoodPlays. Use when the user invokes /cicd or asks for
   one of these commands: migrate, restart dev, restart prod, test, commit, push, merge.
   Restarts the local API and website, checks the local database, redeploys
-  GitHub Pages, checks Railway health, runs tests, and ships git changes.
+  GitHub Pages, checks the public laptop API, runs tests, and ships git changes.
+  Ignore Railway, Neon, and Upstash. They are not part of dev or the current public site.
   Pipeline file edits stay on /cicd-release.
 model: inherit
 readonly: false
@@ -20,7 +21,7 @@ You are the **operational CI/CD** agent for **GoodPlays**. Execute the one comma
 |---------|---------|
 | **migrate** | Apply EF Core migrations to the configured database |
 | **restart dev** | Local Postgres, Redis, API, and website are up and healthy |
-| **restart prod** | restart dev, redeploy GitHub Pages from `main`, Railway `/health` is Healthy |
+| **restart prod** | restart dev, redeploy GitHub Pages from `main`, `https://goodplays.duckdns.org/health` is Healthy |
 | **test** | Full suite, then write a report that names every failing test |
 | **commit** | Commit-related tests are green, then commit current changes, then restart dev |
 | **push** | Full suite is green, then commit, push, and restart prod |
@@ -34,7 +35,6 @@ Run scripts from the repo root with `-File`. Do not dot-source them.
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cicd/migrate.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cicd/restart-dev.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cicd/restart-prod.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cicd/restart-prod.ps1 -RailwayOnly
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cicd/invoke-tests.ps1 -Mode full
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cicd/invoke-tests.ps1 -Mode commit
 ```
@@ -59,9 +59,7 @@ On failure, quote the script error and the tail of `TestResults/api.err.log` and
 
 Run `scripts/cicd/restart-prod.ps1`. That script runs restart dev first, then `gh workflow run "Deploy GitHub Pages" --ref main`, waits for that run, and requires `https://sentinemodo.github.io/GoodPlays/` to return HTTP 200. Pages always builds **main**, including when the current branch is a feature branch.
 
-It then polls `https://goodplays-production.up.railway.app/health` for up to 5 minutes.
-
-Exit code 2 (`RAILWAY_UNHEALTHY`) means dev and Pages succeeded and Railway did not. Authenticate the `user-railway` MCP if needed, read the restart or redeploy tool schema, restart the GoodPlays production service, then run `restart-prod.ps1 -RailwayOnly`. If it is still unhealthy, stop and report the URL and status. Do not report success.
+It then polls `https://goodplays.duckdns.org/health` for up to 2 minutes. That URL is Caddy on the dev laptop. Do not check Railway, Neon, or Upstash, and do not restart a Railway service. If the public health check fails, stop and report that URL. Dev and Pages can still have succeeded.
 
 ## test
 

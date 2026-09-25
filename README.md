@@ -123,7 +123,29 @@ There is no separate **Allowed origins** menu in current Clerk UI.
 - **Local dev** (`http://localhost:5180`) — works automatically on Development instances.
 - **GitHub Pages** — **Configure → Domains → Add domain** → `sentinemodo.github.io`
 
+### Public access (current)
+
+GitHub Pages (`https://sentinemodo.github.io/GoodPlays/`) calls the API on the dev laptop. Postgres and Redis stay on Docker on that machine and are not published to the internet.
+
+| Piece | Value |
+|-------|--------|
+| Public API | `https://goodplays.duckdns.org` |
+| DNS | DuckDNS A record → `91.220.222.102` |
+| TLS | Caddy on the laptop (`C:\Users\akacz\caddy\Caddyfile`) → `127.0.0.1:5280` |
+| Router | Huawei HS8145V, WAN `1_INTERNET_R_VID_100`, TCP `80`, `443`, and `5280` → `192.168.100.17` |
+| API bind | `http://0.0.0.0:5280` (http launch profile) |
+| Pages variable | `VITE_API_URL=https://goodplays.duckdns.org` |
+| CORS | Development policy allows `https://sentinemodo.github.io` |
+
+Caddy does not start on reboot. From `C:\Users\akacz\caddy`: `caddy start`. The laptop, Docker Postgres, the API, and Caddy must all be up.
+
+Clerk webhook URL for this host: `https://goodplays.duckdns.org/api/v1/webhooks/clerk`.
+
+Railway, Neon, and Upstash remain the scale path below. ngrok is no longer required for Pages.
+
 ### Webhook (local, via ngrok)
+
+Use this only when the DuckDNS host above is down.
 
 1. Start API: `dotnet run --project src/GoodPlays.Api`
 2. In another terminal: `ngrok http 5280`
@@ -214,14 +236,14 @@ curl https://YOUR-RAILWAY-URL/health
 
 Expect `"status":"Healthy"` when Postgres (and Redis, if configured) are reachable.
 
-### Local vs cloud
+### Local vs public laptop vs cloud
 
-| Concern | Local | Railway |
-|---------|-------|---------|
-| Postgres | Docker Compose (`DATABASE_URL` is ignored) | Neon `DATABASE_URL` |
-| Redis | Docker Compose | Upstash `REDIS_URL` |
-| Import jobs | Inline without Redis | Hangfire with Upstash |
-| Frontend | `localhost:5180` | GitHub Pages + `VITE_API_URL` |
+| Concern | Local only | Public laptop (current) | Railway (scale) |
+|---------|------------|-------------------------|-----------------|
+| Postgres | Docker Compose (`DATABASE_URL` is ignored) | Same Docker Postgres, not port-forwarded | Neon `DATABASE_URL` |
+| Redis | Docker Compose | Same, not port-forwarded | Upstash `REDIS_URL` |
+| API | `localhost:5280` | Caddy `https://goodplays.duckdns.org` | Railway URL |
+| Frontend | `localhost:5180` | GitHub Pages + `VITE_API_URL` | GitHub Pages + `VITE_API_URL` |
 
 ## Next steps for implementers (Phase 3+)
 

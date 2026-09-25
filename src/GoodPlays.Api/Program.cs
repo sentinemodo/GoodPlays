@@ -81,7 +81,10 @@ builder.Services.AddClerkAuthentication(builder.Configuration);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ViteDev", policy =>
-        policy.WithOrigins("http://localhost:5180", "http://127.0.0.1:5180")
+        policy.WithOrigins(
+            "http://localhost:5180",
+            "http://127.0.0.1:5180",
+            "https://sentinemodo.github.io")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -111,18 +114,21 @@ builder.Services.AddTransient<SteamSyncJob>();
 builder.Services.AddTransient<PsnSyncJob>();
 builder.Services.AddTransient<GameEnrichmentJobs>();
 builder.Services.AddTransient<AchievementSyncJob>();
+builder.Services.AddTransient<CoverRefreshJob>();
 
 if (redisMultiplexer is not null)
 {
     builder.Services.AddSingleton<IImportJobScheduler, HangfireImportJobScheduler>();
     builder.Services.AddSingleton<ISteamSyncJobScheduler, HangfireSteamSyncJobScheduler>();
     builder.Services.AddSingleton<IPsnSyncJobScheduler, HangfirePsnSyncJobScheduler>();
+    builder.Services.AddSingleton<ICoverRefreshScheduler, HangfireCoverRefreshScheduler>();
 }
 else
 {
     builder.Services.AddSingleton<IImportJobScheduler, InlineImportJobScheduler>();
     builder.Services.AddScoped<ISteamSyncJobScheduler, InlineSteamSyncJobScheduler>();
     builder.Services.AddScoped<IPsnSyncJobScheduler, InlinePsnSyncJobScheduler>();
+    builder.Services.AddSingleton<ICoverRefreshScheduler, InlineCoverRefreshScheduler>();
 }
 
 var app = builder.Build();

@@ -124,6 +124,7 @@ public class GoodPlaysDbContext(DbContextOptions<GoodPlaysDbContext> options) : 
             entity.Property(e => e.HoursPlayed).HasColumnName("hours_played").HasPrecision(8, 2);
             entity.Property(e => e.HoursPlayedSource).HasColumnName("hours_played_source").HasConversion<string>();
             entity.Property(e => e.HoursPlayedLocked).HasColumnName("hours_played_locked").HasDefaultValue(false);
+            entity.Property(e => e.IsLoved).HasColumnName("is_loved").HasDefaultValue(false);
             entity.Property(e => e.StartedAt).HasColumnName("started_at");
             entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
             entity.Property(e => e.Source).HasColumnName("source").HasConversion<string>();
@@ -249,6 +250,7 @@ public class GoodPlaysDbContext(DbContextOptions<GoodPlaysDbContext> options) : 
             entity.Property(e => e.UserId).HasColumnName("user_id");
             entity.Property(e => e.AchievementId).HasColumnName("achievement_id");
             entity.Property(e => e.UnlockedAt).HasColumnName("unlocked_at");
+            entity.Property(e => e.IsFeatured).HasColumnName("is_featured").HasDefaultValue(false);
         });
 
         modelBuilder.Entity<GameComment>(entity =>

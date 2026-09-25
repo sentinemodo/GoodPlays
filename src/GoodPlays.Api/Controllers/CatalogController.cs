@@ -9,7 +9,8 @@ namespace GoodPlays.Api.Controllers;
 [Route("api/v1/catalog")]
 public class CatalogController(
     ICatalogService catalogService,
-    ICurrentUserAccessor currentUserAccessor) : ControllerBase
+    ICurrentUserAccessor currentUserAccessor,
+    ICoverRefreshScheduler coverRefreshScheduler) : ControllerBase
 {
     [HttpGet("games")]
     public async Task<IActionResult> BrowseGames([FromQuery] CatalogBrowseRequest request, CancellationToken cancellationToken)
@@ -17,6 +18,7 @@ public class CatalogController(
         var user = await currentUserAccessor.GetCurrentUserAsync(cancellationToken);
         var query = request.ToQuery();
         var result = await catalogService.BrowseAsync(user?.Id, query, cancellationToken);
+        coverRefreshScheduler.Schedule(MissingCoverIds.FromCatalog(result));
         return Ok(result);
     }
 

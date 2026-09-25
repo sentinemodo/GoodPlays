@@ -90,6 +90,7 @@ export function ImportTextPanel() {
               type="button"
               onClick={() => {
                 queryClient.invalidateQueries({ queryKey: ['library'] })
+                queryClient.invalidateQueries({ queryKey: ['catalog'] })
               }}
               className="mt-3 text-xs text-primary hover:text-primary"
             >
